@@ -1,0 +1,31 @@
+name: Weather App
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: OWASP Dependency Check
+        uses: OWASP/dependency-check-action@v6
+        with:
+          project: WeatherApp
+          scan: .
+          format: "HTML"
+
+      - name: Publish Dependency Check Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-check-report
+          pattern: "**/dependency-check-report.html"
