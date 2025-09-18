@@ -12,20 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Install dependencies
         run: npm install
 
       - name: OWASP Dependency Check
+        id: Depcheck
         uses: dependency-check/Dependency-Check_Action@main
         with:
           project: WeatherApp
           scan: .
           format: "HTML"
 
-      - name: Publish Dependency Check Results
+      - name: Upload Test results
         uses: actions/upload-artifact@v4
         with:
-          name: dependency-check-report
-          pattern: "**/dependency-check-report.html"
+          name: Depcheck report
+          path: ${{github.workspace}}/reports
