@@ -18,7 +18,7 @@ jobs:
         run: npm install
 
       - name: OWASP Dependency Check
-        uses: OWASP/dependency-check-action@v6
+        uses: dependency-check/Dependency-Check_Action@main
         with:
           project: WeatherApp
           scan: .
