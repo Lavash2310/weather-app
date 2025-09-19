@@ -4,19 +4,57 @@ on:
   push:
     branches:
       - main
+  pull_request:
+      types: [opened, synchronize, reopened]
 
   workflow_dispatch:
 
 jobs:
-  build:
+  Build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Cache Node.js modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm install
 
+  SonarCloud:
+    needs: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          organization: lavash2310
+          projectKey: weather-app
+          token: ${{ secrets.SONAR_TOKEN }}
+
+  DependencyCheck:
+    needs: Build
+    runs-on: ubuntu-latest
+    steps:
       - name: OWASP Dependency Check
         id: Depcheck
         uses: dependency-check/Dependency-Check_Action@main
