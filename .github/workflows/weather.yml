@@ -6,6 +6,7 @@ on:
       - main
   pull_request:
       types: [opened, synchronize, reopened]
+
   workflow_dispatch:
 
 jobs:
@@ -47,6 +48,7 @@ jobs:
         with:
           projectBaseDir: .
           organization: Lavash2310
+          projectKey: weather-app
           token: ${{ secrets.SONAR_TOKEN }}
 
   DependencyCheck:
