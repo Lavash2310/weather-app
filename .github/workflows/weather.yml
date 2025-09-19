@@ -80,17 +80,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm install
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "18"
 
+      - name: Install dependencies
+        run: npm install
+
       - name: Run build
         run: npm run build
-        
+
   Publish_Nexus:
     needs: Test
     runs-on: ubuntu-latest
