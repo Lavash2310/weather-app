@@ -35,18 +35,22 @@ jobs:
     needs: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+  
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          organization: lavash2310
-          projectKey: weather-app
           projectBaseDir: .
-          token: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.organization=lavash2310
+            -Dsonar.projectKey=weather-app
+            -Dsonar.sources=.
+            -Dsonar.host.url=https://sonarcloud.io
+
 
   DependencyCheck:
     needs: Build
