@@ -51,6 +51,7 @@ jobs:
             -Dsonar.projectKey=weather-app
             -Dsonar.sources=.
             -Dsonar.host.url=https://sonarcloud.io
+          waitForQualityGate: true
 
   DependencyCheck:
     needs: Build
