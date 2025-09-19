@@ -5,7 +5,7 @@ on:
     branches:
       - main
   pull_request:
-      types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened]
 
   workflow_dispatch:
 
@@ -44,12 +44,14 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
+          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: .
-          organization: lavash2310
-          projectKey: weather-app
-          token: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.organization=lavash2310
+            -Dsonar.projectKey=weather-app
+            -Dsonar.sources=.
+            -Dsonar.host.url=https://sonarcloud.io
 
   DependencyCheck:
     needs: Build
