@@ -2,11 +2,9 @@ name: Weather App
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-      types: [opened, synchronize, reopened]
-
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 jobs:
@@ -37,7 +35,8 @@ jobs:
     needs: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -47,24 +46,47 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: .
-          organization: lavash2310
-          projectKey: weather-app
-          token: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.organization=lavash2310
+            -Dsonar.projectKey=weather-app
+            -Dsonar.sources=.
+            -Dsonar.host.url=https://sonarcloud.io
+          waitForQualityGate: true
 
   DependencyCheck:
     needs: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: OWASP Dependency Check
-        id: Depcheck
         uses: dependency-check/Dependency-Check_Action@main
         with:
           project: WeatherApp
           scan: .
-          format: "HTML"
+          format: HTML
 
-      - name: Upload Test results
+      - name: Upload Dependency Check Report
         uses: actions/upload-artifact@v4
         with:
           name: Depcheck report
-          path: ${{github.workspace}}/reports
+          path: ${{ github.workspace }}/reports
+
+  Test:
+    needs: [SonarCloud, DependencyCheck]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Run build
+        run: npm run build
