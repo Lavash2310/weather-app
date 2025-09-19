@@ -2,11 +2,9 @@ name: Weather App
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
-
   workflow_dispatch:
 
 jobs:
@@ -37,34 +35,35 @@ jobs:
     needs: Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
-        env:
-          GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          args: >
-            -Dsonar.organization=lavash2310
-            -Dsonar.projectKey=weather-app
+          organization: lavash2310
+          projectKey: weather-app
+          projectBaseDir: .
+          token: ${{ secrets.SONAR_TOKEN }}
 
   DependencyCheck:
     needs: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: OWASP Dependency Check
-        id: Depcheck
         uses: dependency-check/Dependency-Check_Action@main
         with:
           project: WeatherApp
           scan: .
-          format: "HTML"
+          format: HTML
 
-      - name: Upload Test results
+      - name: Upload Dependency Check Report
         uses: actions/upload-artifact@v4
         with:
           name: Depcheck report
-          path: ${{github.workspace}}/reports
+          path: ${{ github.workspace }}/reports
