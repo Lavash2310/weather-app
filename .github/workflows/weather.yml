@@ -13,18 +13,25 @@ jobs:
   Build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: "18"
-        cache: "npm"
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    - name: Install dependencies
-      run: npm install
-      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
 
   SonarQube:
     runs-on: ubuntu-latest
@@ -41,7 +48,6 @@ jobs:
           projectBaseDir: .
           organization: "Lasvash2310"
           token: ${{ secrets.SONAR_TOKEN }}
-
 
   DependencyCheck:
     runs-on: ubuntu-latest
