@@ -1,0 +1,7 @@
+organization=lavash2310
+projectKey=weather-app
+serverUrl=https://sonarcloud.io
+serverVersion=8.0.0.67388
+dashboardUrl=https://sonarcloud.io/dashboard?id=weather-app
+ceTaskId=AZliGB1czGEvxrAI2xhk
+ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZliGB1czGEvxrAI2xhk
