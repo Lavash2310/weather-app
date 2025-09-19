@@ -6,7 +6,6 @@ on:
       - main
   pull_request:
       types: [opened, synchronize, reopened]
-
   workflow_dispatch:
 
 jobs:
@@ -33,23 +32,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-  SonarQube:
+  SonarCloud:
+    needs: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: SonarQube Scan
-        uses: sonarsource/sonarcloud-github-action@v4
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
         with:
           projectBaseDir: .
-          organization: "Lasvash2310"
+          organization: Lavash2310
           token: ${{ secrets.SONAR_TOKEN }}
 
   DependencyCheck:
+    needs: Build
     runs-on: ubuntu-latest
     steps:
       - name: OWASP Dependency Check
