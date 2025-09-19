@@ -47,7 +47,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: .
-          organization: Lavash2310
+          organization: lavash2310
           projectKey: weather-app
           token: ${{ secrets.SONAR_TOKEN }}
 
