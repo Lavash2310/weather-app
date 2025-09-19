@@ -50,8 +50,6 @@ jobs:
           args: >
             -Dsonar.organization=lavash2310
             -Dsonar.projectKey=weather-app
-            -Dsonar.sources=.
-            -Dsonar.host.url=https://sonarcloud.io
 
   DependencyCheck:
     needs: Build
