@@ -10,7 +10,7 @@ interface WeatherData {
   icon: string;
 }
 
-const API_KEY = 'cb1610b9a7d4fc1470b8d4d1e243a873';
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 const App: React.FC = () => {
   const [city, setCity] = useState('');
