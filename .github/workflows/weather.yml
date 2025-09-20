@@ -33,7 +33,7 @@ jobs:
 
   SonarCloud:
     needs: Build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
 
   DependencyCheck:
     needs: Build
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
