@@ -4,6 +4,8 @@ node_modules
 
 /build
 
+.npmrc.local
+
 .env
 .env.local
 .env.development.local
