@@ -9,7 +9,7 @@ on:
 
 jobs:
   Build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
 
   Test:
     needs: [SonarCloud, DependencyCheck]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,7 +86,28 @@ jobs:
           node-version: "18"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run build
         run: npm run build
+
+  Publish_Nexus:
+    needs: Test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "http://localhost:8081/repository/my-group/"
+
+      - name: Authenticate with Nexus
+        run: echo "//localhost:8081/repository/my-library/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish package
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
