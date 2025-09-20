@@ -1,4 +1,4 @@
-FROM node:18-bookworm AS build
+FROM node:18-alpine AS build
 WORKDIR /app
 
 COPY package*.json tsconfig.json vite.config.ts ./
@@ -9,7 +9,7 @@ COPY . .
 
 RUN npm run build
 
-FROM node:18-bookworm AS production
+FROM node:18-alpine AS production
 WORKDIR /app
 
 COPY --from=build /app/dist ./dist
