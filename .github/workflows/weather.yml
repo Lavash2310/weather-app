@@ -99,7 +99,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "18"
-          registry-url: "http://localhost:8081/repository/my-group/"
+          registry-url: "http://localhost:8081/repository/my-library/"
 
       - name: Authenticate with Nexus
         run: echo "//localhost:8081/repository/my-library/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
