@@ -13,33 +13,35 @@ spec:
         app: my-app
     spec:
       - name: weather-app
-        image: jouk2310/weather-app:latest
-        imagePullPolicy: Always
-        ports:
-          - containerPort: 4173
-          - name: react-app
-        env:
-          - name: WEATHER_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: my-app-secret
-                key: api-key
-        readiessProbe:
-          httpGet:
-            path: /
-            port: 4173
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 4173
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "250m"
-          limits:
-            memory: "256Mi"
-            cpu: "500m"
+        ServiceAccountName: my-app-sa
+        containers:
+          image: jouk2310/weather-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4173
+            - name: react-app
+          env:
+            - name: WEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-app-secret
+                  key: api-key
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 4173
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 4173
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
