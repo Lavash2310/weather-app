@@ -15,13 +15,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Node.js modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+      - name: Clean npm cache
+        run: |
+          npm cache clean --force
+          npm cache verify
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -147,23 +144,22 @@ jobs:
     needs: Docker
     runs-on: self-hosted
     steps:
-      - name: Set the Kubernetes context
-        uses: azure/k8s-set-context@v4
-        with:
-          method: service-account
-          k8s-url: https://127.0.0.1:53193
-          k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
+    - name: Checkout source code
+      uses: actions/checkout@v4
 
-      - name: Checkout source code
-        uses: actions/checkout@v4
+    - name: Load image into minikube
+      run: |
+        IMAGE=jouk2310/weather-app:latest
+        minikube image load $IMAGE
 
-      - name: Deploy to the Kubernetes cluster
-        uses: azure/k8s-deploy@v5
-        with:
-          namespace: default
-          manifests: |
-            deployment.yaml
-            service.yaml
-            secrets.yaml
-          images: |
-            jouk2310/weather-app:${{ github.sha }}
+    - name: Apply manifests with kubectl (local minikube)
+      run: |
+        kubectl apply -f service-account.yaml
+        kubectl apply -f role.yaml
+        kubectl apply -f role-binding.yaml
+        kubectl apply -f secrets.yaml
+        kubectl apply -f deployment.yaml
+        kubectl apply -f service.yaml
+
+    - name: Show pods
+      run: kubectl get pods -n default -o wide
