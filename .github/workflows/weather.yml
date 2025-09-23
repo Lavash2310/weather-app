@@ -147,18 +147,8 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set Kubernetes context
-        uses: azure/k8s-set-context@v4
-        with:
-          method: service-account
-          k8s-url: http://weather.local
-          k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
-
-
-      - name: Load image into minikube
-        run: |
-          IMAGE=jouk2310/weather-app:latest
-          minikube image load $IMAGE
+      - name: Copy local kubeconfig
+        run: echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
 
       - name: Apply Kubernetes manifests
         run: |
