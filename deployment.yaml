@@ -1,5 +1,5 @@
-kind: Deployment
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: my-app
   namespace: default
@@ -13,14 +13,14 @@ spec:
       labels:
         app: my-app
     spec:
-      - name: weather-app
-        ServiceAccountName: my-app-sa
-        containers:
+      serviceAccountName: my-app-sa
+      containers:
+        - name: weather-app
           image: jouk2310/weather-app:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 4173
             - name: react-app
+              containerPort: 4173
           env:
             - name: WEATHER_API_KEY
               valueFrom:
