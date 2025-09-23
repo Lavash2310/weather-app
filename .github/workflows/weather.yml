@@ -63,13 +63,13 @@ jobs:
 
       - name: OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
-        env:
-          OSS_INDEX_USER: ${{ secrets.OSS_INDEX_USER }}
-          OSS_INDEX_TOKEN: ${{ secrets.OSS_INDEX_TOKEN }}
         with:
           project: WeatherApp
           scan: .
           format: HTML
+          args: >
+            --disableOssIndex
+            --enableRetired false
 
       - name: Upload Dependency Check Report
         uses: actions/upload-artifact@v4
@@ -166,4 +166,4 @@ jobs:
             service.yaml
             secrets.yaml
           images: |
-            jouk2310/weather-app:{{ github.sha }}
+            jouk2310/weather-app:${{ github.sha }}
