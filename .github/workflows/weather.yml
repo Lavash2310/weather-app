@@ -158,6 +158,8 @@ jobs:
           kubectl apply -f kubernetes/service-account.yaml
           kubectl apply -f kubernetes/role.yaml
           kubectl apply -f kubernetes/role-binding.yaml
+          kubectl apply -f kubernetes/hello-nginx.yaml
+          kubectl apply -f kubernetes/nginx-service.yaml
           kubectl apply -f kubernetes/secrets.yaml
           kubectl apply -f kubernetes/deployment.yaml
           kubectl apply -f kubernetes/service.yaml
