@@ -4,7 +4,7 @@ metadata:
   name: my-app
   namespace: default
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: my-app
@@ -20,7 +20,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - name: react-app
-              containerPort: 4173
+              containerPort: 80
           env:
             - name: WEATHER_API_KEY
               valueFrom:
@@ -30,13 +30,13 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 4173
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
-              port: 4173
+              port: 80
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:

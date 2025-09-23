@@ -9,15 +9,14 @@ COPY . .
 
 RUN npm run build
 
-FROM node:18-alpine AS production
-WORKDIR /app
+FROM nginx:stable-alpine AS production
 
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package*.json ./ \
-    /app/package-lock.json ./
+RUN rm -rf /usr/share/nginx/html/*
 
-RUN npm ci --omit=dev
+COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 4173
+COPY --from=build /app/nginx.conf /etc/nginx/conf.d/weather-app.conf
 
-CMD ["npx", "vite", "preview", "--port", "4173", "--host"]
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
