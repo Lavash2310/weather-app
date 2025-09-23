@@ -163,14 +163,14 @@ jobs:
           kubectl apply -f kubernetes/service.yaml
           kubectl apply -f kubernetes/ingress.yaml
 
-      - name: Set image
+      - name: Update deployment image
         run: |
           IMAGE=jouk2310/weather-app:latest
           echo "Setting image to $IMAGE"
           kubectl set image deployment/weather-app weather-app=$IMAGE -n default
 
-      - name: Wait rollout
-        run: kubectl rollout status deployment/weather-app -n default --timeout=120s
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/weather-app -n default --timeout=180s
 
       - name: Show resources
         run: kubectl get pods,svc,ingress -n default -o wide
