@@ -145,7 +145,7 @@ jobs:
 
   Kubernetes_Deploy:
     needs: Docker
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Set the Kubernetes context
         uses: azure/k8s-set-context@v4
