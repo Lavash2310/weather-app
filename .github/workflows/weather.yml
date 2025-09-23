@@ -147,27 +147,27 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set Kubernetes context
-        uses: azure/k8s-set-context@v4
-        with:
-          method: service-account
-          k8s-url: http://weather.local
-          k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
-
-
-      - name: Load image into minikube
+      - name: Write KUBECONFIG from secret
         run: |
-          IMAGE=jouk2310/weather-app:latest
-          minikube image load $IMAGE
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f kubernets/service-account.yaml
-          kubectl apply -f kubernets/role.yaml
-          kubectl apply -f kubernets/role-binding.yaml
-          kubectl apply -f kubernets/deployment.yaml
-          kubectl apply -f kubernets/service.yaml
-          kubectl apply -f kubernets/ingress.yaml
+          kubectl apply -f kubernetes/service-account.yaml
+          kubectl apply -f kubernetes/role.yaml
+          kubectl apply -f kubernetes/role-binding.yaml
+          kubectl apply -f kubernetes/secrets.yaml
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
+          kubectl apply -f kubernetes/ingress.yaml
+
+      - name: Set image
+        run: |
+          IMAGE=jouk2310/weather-app:latest
+          echo "Setting image to $IMAGE"
+          kubectl set image deployment/weather-app weather-app=$IMAGE -n default
 
       - name: Wait rollout
         run: kubectl rollout status deployment/weather-app -n default --timeout=120s
