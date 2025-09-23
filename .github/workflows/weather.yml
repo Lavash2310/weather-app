@@ -63,6 +63,9 @@ jobs:
 
       - name: OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
+        env:
+          OSS_INDEX_USER: ${{ secrets.OSS_INDEX_USER }}
+          OSS_INDEX_TOKEN: ${{ secrets.OSS_INDEX_TOKEN }}
         with:
           project: WeatherApp
           scan: .
@@ -141,26 +144,26 @@ jobs:
           sbom: true
 
   Kubernetes_Deploy:
-      needs: Docker
-      runs-on: self-hosted
-      steps:
-        - name: Set the Kubernetes context
-          uses: azure/k8s-set-context@v4
-          with:
-            method: service-account
-            k8s-url: https://127.0.0.1:53193
-            k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
+    needs: Docker
+    runs-on: self-hosted
+    steps:
+      - name: Set the Kubernetes context
+        uses: azure/k8s-set-context@v4
+        with:
+          method: service-account
+          k8s-url: https://127.0.0.1:53193
+          k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
 
-        - name: Checkout source code
-          uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-        - name: Deploy to the Kubernetes cluster
-          uses: azure/k8s-deploy@v5
-          with:
-            namespace: default
-            manifests: |
-              deployment.yaml
-              service.yaml
-              secrets.yaml
-            images: |
-              jouk2310/weather-app:{{ github.sha }}
+      - name: Deploy to the Kubernetes cluster
+        uses: azure/k8s-deploy@v5
+        with:
+          namespace: default
+          manifests: |
+            deployment.yaml
+            service.yaml
+            secrets.yaml
+          images: |
+            jouk2310/weather-app:{{ github.sha }}
