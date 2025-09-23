@@ -147,18 +147,27 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Copy local kubeconfig
-        run: echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+      - name: Write KUBECONFIG from secret
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f kubernetes/service-account.yaml
-          kubectl apply -f kubernetes/role.yaml
-          kubectl apply -f kubernetes/role-binding.yaml
-          kubectl apply -f kubernetes/secrets.yaml
-          kubectl apply -f kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/service.yaml
-          kubectl apply -f kubernetes/ingress.yaml
+          kubectl apply -f kubernets/service-account.yaml
+          kubectl apply -f kubernets/role.yaml
+          kubectl apply -f kubernets/role-binding.yaml
+          kubectl apply -f kubernets/secrets.yaml
+          kubectl apply -f kubernets/deployment.yaml
+          kubectl apply -f kubernets/service.yaml
+          kubectl apply -f kubernets/ingress.yaml
+
+      - name: Set image
+        run: |
+          IMAGE=jouk2310/weather-app:latest
+          echo "Setting image to $IMAGE"
+          kubectl set image deployment/weather-app weather-app=$IMAGE -n default
 
       - name: Wait rollout
         run: kubectl rollout status deployment/weather-app -n default --timeout=120s
