@@ -26,6 +26,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: my-app-secret
+                  key: api-key
           readinessProbe:
             httpGet:
               path: /
