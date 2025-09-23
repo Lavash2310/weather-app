@@ -144,22 +144,33 @@ jobs:
     needs: Docker
     runs-on: self-hosted
     steps:
-    - name: Checkout source code
-      uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-    - name: Load image into minikube
-      run: |
-        IMAGE=jouk2310/weather-app:latest
-        minikube image load $IMAGE
+      - name: Set Kubernetes context
+        uses: azure/k8s-set-context@v4
+        with:
+          method: service-account
+          k8s-url: http://weather.local
+          k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
 
-    - name: Apply manifests with kubectl (local minikube)
-      run: |
-        kubectl apply -f service-account.yaml
-        kubectl apply -f role.yaml
-        kubectl apply -f role-binding.yaml
-        kubectl apply -f secrets.yaml
-        kubectl apply -f deployment.yaml
-        kubectl apply -f service.yaml
 
-    - name: Show pods
-      run: kubectl get pods -n default -o wide
+      - name: Load image into minikube
+        run: |
+          IMAGE=jouk2310/weather-app:latest
+          minikube image load $IMAGE
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f kubernets/service-account.yaml
+          kubectl apply -f kubernets/role.yaml
+          kubectl apply -f kubernets/role-binding.yaml
+          kubectl apply -f kubernets/deployment.yaml
+          kubectl apply -f kubernets/service.yaml
+          kubectl apply -f kubernets/ingress.yaml
+
+      - name: Wait rollout
+        run: kubectl rollout status deployment/weather-app -n default --timeout=120s
+
+      - name: Show resources
+        run: kubectl get pods,svc,ingress -n default -o wide
