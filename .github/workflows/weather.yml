@@ -157,16 +157,11 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Deploy to the Kubernetes cluster
-        uses: azure/k8s-deploy@v4
-        with:
-          namespace: default
-          manifests: |
-            service-account.yaml
-            role.yaml
-            role-binding.yaml
-            secrets.yaml
-            deployment.yaml
-            service.yaml
-          images: |
-            jouk2310/weather-app:latest
+      - name: Apply manifests with kubectl
+        run: |
+          kubectl apply -f service-account.yaml
+          kubectl apply -f role.yaml
+          kubectl apply -f role-binding.yaml
+          kubectl apply -f secrets.yaml
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
