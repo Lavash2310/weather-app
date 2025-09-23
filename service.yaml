@@ -2,6 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: my-app-service
+  namespace: default
 spec:
   selector:
     app: my-app

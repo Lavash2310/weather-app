@@ -2,6 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: my-app
+  namespace: default
 spec:
   replicas: 2
   selector:
