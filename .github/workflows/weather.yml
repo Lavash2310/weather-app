@@ -162,8 +162,12 @@ jobs:
         with:
           namespace: default
           manifests: |
+            service-account.yaml
+            role.yaml
+            role-binding.yaml
+            secrets.yaml
             deployment.yaml
             service.yaml
-            secrets.yaml
           images: |
+            jouk2310/weather-app:latest
             jouk2310/weather-app:${{ github.sha }}
