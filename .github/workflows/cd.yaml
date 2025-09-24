@@ -129,7 +129,7 @@ jobs:
               console.log("Build Status:", BUILD_STATUS);
               console.log("Docker Image:", DOCKER_IMAGE);
 
-              const transporter = nodemailer.createTransporter({
+              const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
                   user: SMTP_USERNAME,
@@ -297,7 +297,7 @@ jobs:
               `;
 
               const mailOptions = {
-                from: `Weather App CI/CD <$SMTP_USERNAME}>`,
+                from: `Weather App CI/CD <${SMTP_USERNAME}>`,
                 to: MAIL_TO,
                 subject: `${statusEmoji} Weather App - Docker ${statusText}`,
                 html: htmlBody
@@ -357,7 +357,7 @@ jobs:
 
               console.log("Deployment Status:", DEPLOYMENT_STATUS);
 
-              const transporter = nodemailer.createTransporter({
+              const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
                   user: SMTP_USERNAME,
