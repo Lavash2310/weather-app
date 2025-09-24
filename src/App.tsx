@@ -37,10 +37,7 @@ const App: React.FC = () => {
       );
       
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('City not found');
-        }
-        throw new Error('Failed to fetch weather data');
+        throw new Error('City not found');
       }
 
       const data = await response.json();
@@ -48,10 +45,10 @@ const App: React.FC = () => {
       setWeather({
         temperature: Math.round(data.main.temp),
         humidity: data.main.humidity,
-        windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
+        windSpeed: Math.round(data.wind.speed),
         description: data.weather[0].description,
         city: data.name,
-        icon: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`
+        icon: data.weather[0].icon
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
@@ -121,7 +118,7 @@ const App: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-2">{weather.city}</h2>
                 <div className="flex items-center justify-center mb-2">
                   <img 
-                    src={weather.icon}
+                    src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
                     alt={weather.description}
                     className="w-16 h-16"
                   />
@@ -150,7 +147,7 @@ const App: React.FC = () => {
                   <Wind className="text-purple-500 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Wind Speed</p>
-                    <p className="text-xl font-bold">{weather.windSpeed} км/год</p>
+                    <p className="text-xl font-bold">{weather.windSpeed} km/h</p>
                   </div>
                 </div>
               </div>
