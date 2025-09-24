@@ -1,0 +1,157 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types:
+      - completed
+
+jobs:
+  Docker:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: jouk2310
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            jouk2310/weather-app:latest
+            jouk2310/weather-app:${{ github.sha }}
+          file: ./Dockerfile
+          sbom: true
+
+      - name: Set image output
+        id: set-image
+        run: |
+          echo "image=jouk2310/weather-app:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  Kubernetes_Deploy:
+    needs: Docker
+    runs-on: self-hosted
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Write KUBECONFIG from secret
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f kubernetes/service-account.yaml
+          kubectl apply -f kubernetes/role.yaml
+          kubectl apply -f kubernetes/role-binding.yaml
+          kubectl apply -f kubernetes/hello-nginx.yaml
+          kubectl apply -f kubernetes/nginx-service.yaml
+          kubectl apply -f kubernetes/secrets.yaml
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
+
+      - name: Update deployment image
+        run: |
+          IMAGE=jouk2310/weather-app:latest
+          echo "Setting image to $IMAGE"
+          kubectl set image deployment/my-app weather-app=$IMAGE -n default
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/my-app -n default --timeout=180s
+
+      - name: Show resources
+        run: kubectl get pods,svc,ingress -n default -o wide
+
+  Notify_Email:
+    needs: Docker
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Send HTML email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: maksymromanyuk0@gmail.com
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Docker image pushed: ${{ needs.Docker.outputs.image }}"
+          to: maksymromanyuk0@gmail.com
+          from: maksymromanyuk0@gmail.com
+          content_type: text/html
+          body: |
+            <!doctype html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>Docker image pushed</title>
+              <style>
+                body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+                .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
+                .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
+                .header h1 { margin:0; font-size:18px; }
+                .content { padding:20px; color:#111; line-height:1.4; }
+                .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
+                .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
+                .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
+                .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
+                @media only screen and (max-width:480px) {
+                  .card { margin:10px; }
+                  .header h1 { font-size:16px; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="card">
+                <div class="header">
+                  <h1>Docker image built & pushed</h1>
+                </div>
+                <div class="content">
+                  <p class="meta">Build status: <strong>${{ job.status }}</strong></p>
+
+                  <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
+
+                  <p>
+                    <strong>Image:</strong>
+                    <span class="code">${{ needs.Docker.outputs.image }}</span>
+                  </p>
+
+                  <p>
+                    <strong>Commit:</strong>
+                    <span class="code">${{ github.sha }}</span>
+                  </p>
+
+                  <p>
+                    <strong>Ref:</strong> <span class="code">${{ github.ref }}</span>
+                  </p>
+
+                  <p>
+                    <a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a>
+                  </p>
+
+                  <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
+
+                  <p style="margin:0;">
+                    Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.
+                  </p>
+                </div>
+
+                <div class="footer">
+                  CI System • GitHub Actions • Run: ${{ github.run_id }}
+                </div>
+              </div>
+            </body>
+            </html>
