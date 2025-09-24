@@ -75,7 +75,7 @@ jobs:
       - name: Show resources
         run: kubectl get pods,svc,ingress -n default -o wide
 
-  Notify_Email:
+  Docker_Email_Notification:
     needs: Docker
     runs-on: ubuntu-latest
     if: ${{ always() }}
@@ -90,119 +90,393 @@ jobs:
       - name: Install nodemailer
         run: npm install nodemailer
 
-      - name: Create and run send-email.cjs (CommonJS) with debug
+      - name: Send Docker Build Email
         env:
-          SMTP_USER: ${{ secrets.EMAIL_USER || 'maksymromanyuk0@gmail.com' }}
-          SMTP_PASS: ${{ secrets.SMTP_PASSWORD }}
-          IMAGE: ${{ needs.Docker.outputs.set-image }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          DOCKER_IMAGE: ${{ needs.Docker.outputs.image || 'jouk2310/weather-app:latest' }}
           BUILD_STATUS: ${{ needs.Docker.result }}
           GIT_SHA: ${{ github.sha }}
           GIT_REF: ${{ github.ref }}
           RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          if [ -z "$SMTP_PASS" ]; then
-            echo "::error::SMTP_PASSWORD secret is empty. Add App Password to repo secrets as SMTP_PASSWORD."
+          if [ -z "$MAIL_PASSWORD" ]; then
+            echo "::error::MAIL_PASSWORD secret is empty. Add Gmail App Password to repo secrets."
             exit 1
           fi
 
-          cat > send-email.cjs <<'CJSEOF'
+          cat > send-docker-email.cjs <<'CJSEOF'
           const nodemailer = require("nodemailer");
 
           (async () => {
             try {
-              const SMTP_USER = process.env.SMTP_USER;
-              const SMTP_PASS = process.env.SMTP_PASS;
-              const IMAGE = process.env.IMAGE || "unknown";
-              const BUILD_STATUS = process.env.BUILD_STATUS || "unknown";
-              const GIT_SHA = process.env.GIT_SHA || "unknown";
-              const GIT_REF = process.env.GIT_REF || "unknown";
-              const RUN_ID = process.env.RUN_ID || "unknown";
+              const MAIL_USERNAME = process.env.MAIL_USERNAME;
+              const MAIL_PASSWORD = process.env.MAIL_PASSWORD;
+              const MAIL_TO = process.env.MAIL_TO;
+              const DOCKER_IMAGE = process.env.DOCKER_IMAGE;
+              const BUILD_STATUS = process.env.BUILD_STATUS;
+              const GIT_SHA = process.env.GIT_SHA;
+              const GIT_REF = process.env.GIT_REF;
+              const RUN_ID = process.env.RUN_ID;
+              const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
+              const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
 
-              console.log("SMTP_USER:", SMTP_USER ? SMTP_USER.replace(/(.{3}).+(@.+)/, "$1***$2") : "(missing)");
-              console.log("IMAGE:", IMAGE);
-              console.log("BUILD_STATUS:", BUILD_STATUS);
+              console.log("Email From:", MAIL_USERNAME);
+              console.log("Email To:", MAIL_TO);
+              console.log("Build Status:", BUILD_STATUS);
+              console.log("Docker Image:", DOCKER_IMAGE);
 
-              const transporter = nodemailer.createTransport({
-                host: "smtp.gmail.com",
-                port: 587,
-                secure: false,
-                auth: { user: SMTP_USER, pass: SMTP_PASS },
-                logger: true,
-                debug: true
+              const transporter = nodemailer.createTransporter({
+                service: 'gmail',
+                auth: {
+                  user: MAIL_USERNAME,
+                  pass: MAIL_PASSWORD
+                }
               });
 
-              // verify connection configuration
-              await new Promise((resolve, reject) => {
-                transporter.verify((err, success) => {
-                  if (err) {
-                    console.error("✖ transporter.verify() failed:", err && err.message);
-                    return reject(err);
-                  }
-                  console.log("✔ transporter.verify(): SMTP connection ok");
-                  resolve(success);
-                });
-              });
+              await transporter.verify();
+              console.log("✔ SMTP connection verified");
 
-              const htmlBody = `<!doctype html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width,initial-scale=1">
-            <title>Docker image pushed</title>
-            <style>
-              body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-              .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
-              .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
-              .header h1 { margin:0; font-size:18px; }
-              .content { padding:20px; color:#111; line-height:1.4; }
-              .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
-              .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
-              .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
-              .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
-            </style>
-          </head>
-          <body>
-            <div class="card">
-              <div class="header">
-                <h1>Docker image built & pushed</h1>
-              </div>
-              <div class="content">
-                <p class="meta">Build status: <strong>${BUILD_STATUS}</strong></p>
-                <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
-                <p><strong>Image:</strong> <span class="code">${IMAGE}</span></p>
-                <p><strong>Commit:</strong> <span class="code">${GIT_SHA}</span></p>
-                <p><strong>Ref:</strong> <span class="code">${GIT_REF}</span></p>
-                <p><a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a></p>
-                <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
-                <p style="margin:0;">Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.</p>
-              </div>
-              <div class="footer">CI System • GitHub Actions • Run: ${RUN_ID}</div>
-            </div>
-          </body>
-          </html>`;
+              const isSuccess = BUILD_STATUS === 'success';
+              const statusText = isSuccess ? 'Build Successful' : 'Build Failed';
+              const statusColor = isSuccess ? '#1f883d' : '#d1242f';
+              const statusBg = isSuccess ? '#d1f5d3' : '#ffebe9';
+              const statusEmoji = isSuccess ? '✅' : '❌';
 
-                        const mailOptions = {
-                          from: `"GitHub Actions" <${SMTP_USER}>`,
-                          to: SMTP_USER,
-                          subject: `Docker image pushed: ${IMAGE}`,
-                          html: htmlBody
-                        };
+              const htmlBody = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { 
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                          margin: 0; 
+                          padding: 0; 
+                          background-color: #f6f8fa; 
+                        }
+                        .container { 
+                          max-width: 600px; 
+                          margin: 0 auto; 
+                          background: #ffffff; 
+                          border: 1px solid #d1d9e0; 
+                          border-radius: 6px; 
+                        }
+                        .header { 
+                          background: ${statusColor}; 
+                          color: white; 
+                          padding: 20px; 
+                          text-align: center; 
+                        }
+                        .header h1 { 
+                          margin: 0; 
+                          font-size: 20px; 
+                          font-weight: 600; 
+                        }
+                        .content { 
+                          padding: 24px; 
+                        }
+                        .status { 
+                          background: ${statusBg}; 
+                          color: ${statusColor}; 
+                          padding: 8px 12px; 
+                          border-radius: 6px; 
+                          font-weight: 500; 
+                          display: inline-block; 
+                          margin-bottom: 16px; 
+                        }
+                        .info-table { 
+                          width: 100%; 
+                          border-collapse: collapse; 
+                          margin: 16px 0; 
+                        }
+                        .info-table td { 
+                          padding: 8px 0; 
+                          border-bottom: 1px solid #eaecf0; 
+                        }
+                        .info-table td:first-child { 
+                          font-weight: 500; 
+                          width: 120px; 
+                          color: #656d76; 
+                        }
+                        .info-table td:last-child { 
+                          font-family: 'Monaco', 'Menlo', monospace; 
+                          font-size: 12px; 
+                        }
+                        .docker-info { 
+                          background: #f6f8fa; 
+                          border: 1px solid #d1d9e0; 
+                          border-radius: 6px; 
+                          padding: 16px; 
+                          margin: 16px 0; 
+                        }
+                        .tag { 
+                          background: #0969da; 
+                          color: white; 
+                          padding: 4px 8px; 
+                          border-radius: 12px; 
+                          font-size: 12px; 
+                          margin: 2px 4px 2px 0; 
+                          display: inline-block; 
+                          font-family: monospace;
+                        }
+                        .button { 
+                          background: ${isSuccess ? '#1f883d' : '#d1242f'}; 
+                          color: white; 
+                          text-decoration: none; 
+                          padding: 8px 16px; 
+                          border-radius: 6px; 
+                          font-weight: 500; 
+                          margin: 8px 8px 0 0; 
+                          display: inline-block; 
+                        }
+                        .footer { 
+                          background: #f6f8fa; 
+                          padding: 16px; 
+                          text-align: center; 
+                          font-size: 12px; 
+                          color: #656d76; 
+                          border-top: 1px solid #d1d9e0; 
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>${statusEmoji} Weather App Deployment</h1>
+                            <p>Docker image ${isSuccess ? 'build completed successfully' : 'build failed'}</p>
+                        </div>
+                        <div class="content">
+                            <div class="status">${statusEmoji} ${statusText}</div>
+                            
+                            <table class="info-table">
+                                <tr>
+                                    <td>Repository:</td>
+                                    <td>${GITHUB_REPOSITORY}</td>
+                                </tr>
+                                <tr>
+                                    <td>Author:</td>
+                                    <td>${GITHUB_ACTOR}</td>
+                                </tr>
+                                <tr>
+                                    <td>Commit:</td>
+                                    <td>${GIT_SHA}</td>
+                                </tr>
+                                <tr>
+                                    <td>Branch:</td>
+                                    <td>${GIT_REF}</td>
+                                </tr>
+                                <tr>
+                                    <td>Build Time:</td>
+                                    <td>${new Date().toISOString()}</td>
+                                </tr>
+                            </table>
+                            
+                            ${isSuccess ? `
+                            <div class="docker-info">
+                                <strong>🐳 Docker Tags:</strong><br>
+                                <span class="tag">jouk2310/weather-app:latest</span>
+                                <span class="tag">${DOCKER_IMAGE}</span>
+                            </div>
+                            
+                            <a href="https://hub.docker.com/r/jouk2310/weather-app" class="button">View on Docker Hub</a>
+                            ` : ''}
+                            
+                            <a href="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" class="button">View Build Logs</a>
+                        </div>
+                        <div class="footer">
+                            Automated notification from GitHub Actions CI/CD<br>
+                            Weather App © 2024
+                        </div>
+                    </div>
+                </body>
+                </html>
+              `;
 
-                        transporter.sendMail(mailOptions, (err, info) => {
-                          if (err) {
-                            console.error("❌ sendMail error:", err && err.message);
-                            if (err.response) console.error("SMTP response:", err.response.toString());
-                            process.exit(1);
-                          } else {
-                            console.log("✅ Email sent:", info.response);
-                          }
-                        });
-                      } catch (e) {
-                        console.error("Unhandled error:", e && e.message);
-                        if (e && e.stack) console.error(e.stack);
-                        process.exit(1);
-                      }
-                    })();
+              const mailOptions = {
+                from: `Weather App CI/CD <${MAIL_USERNAME}>`,
+                to: MAIL_TO,
+                subject: `${statusEmoji} Weather App - Docker ${statusText}`,
+                html: htmlBody
+              };
+
+              const info = await transporter.sendMail(mailOptions);
+              console.log("✅ Docker build email sent successfully:", info.messageId);
+
+            } catch (error) {
+              console.error("❌ Error sending Docker build email:", error);
+              process.exit(1);
+            }
+          })();
           CJSEOF
 
-                    node send-email.cjs
+          node send-docker-email.cjs
+
+  Kubernetes_Email_Notification:
+    needs: [Docker, Kubernetes_Deploy]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.Docker.result == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install nodemailer
+        run: npm install nodemailer
+
+      - name: Send Kubernetes Deployment Email
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.SMTP_USERNAME }}
+          DEPLOYMENT_STATUS: ${{ needs.Kubernetes_Deploy.result }}
+          GIT_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: |
+          cat > send-k8s-email.cjs <<'CJSEOF'
+          const nodemailer = require("nodemailer");
+
+          (async () => {
+            try {
+              const MAIL_USERNAME = process.env.MAIL_USERNAME;
+              const MAIL_PASSWORD = process.env.MAIL_PASSWORD;
+              const MAIL_TO = process.env.MAIL_TO;
+              const DEPLOYMENT_STATUS = process.env.DEPLOYMENT_STATUS;
+              const GIT_SHA = process.env.GIT_SHA;
+              const RUN_ID = process.env.RUN_ID;
+              const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
+              const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
+
+              console.log("Deployment Status:", DEPLOYMENT_STATUS);
+
+              const transporter = nodemailer.createTransporter({
+                service: 'gmail',
+                auth: {
+                  user: MAIL_USERNAME,
+                  pass: MAIL_PASSWORD
+                }
+              });
+
+              await transporter.verify();
+              console.log("✔ SMTP connection verified for K8s notification");
+
+              const isSuccess = DEPLOYMENT_STATUS === 'success';
+              const statusText = isSuccess ? 'Deployment Successful' : 'Deployment Failed';
+              const statusColor = isSuccess ? '#1f883d' : '#d1242f';
+              const statusBg = isSuccess ? '#d1f5d3' : '#ffebe9';
+              const statusEmoji = isSuccess ? '🚀' : '❌';
+
+              const htmlBody = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { 
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                          margin: 0; 
+                          padding: 0; 
+                          background-color: #f6f8fa; 
+                        }
+                        .container { 
+                          max-width: 600px; 
+                          margin: 0 auto; 
+                          background: #ffffff; 
+                          border: 1px solid #d1d9e0; 
+                          border-radius: 6px; 
+                        }
+                        .header { 
+                          background: ${statusColor}; 
+                          color: white; 
+                          padding: 20px; 
+                          text-align: center; 
+                        }
+                        .header h1 { 
+                          margin: 0; 
+                          font-size: 20px; 
+                          font-weight: 600; 
+                        }
+                        .content { 
+                          padding: 24px; 
+                        }
+                        .status { 
+                          background: ${statusBg}; 
+                          color: ${statusColor}; 
+                          padding: 8px 12px; 
+                          border-radius: 6px; 
+                          font-weight: 500; 
+                          display: inline-block; 
+                          margin-bottom: 16px; 
+                        }
+                        .footer { 
+                          background: #f6f8fa; 
+                          padding: 16px; 
+                          text-align: center; 
+                          font-size: 12px; 
+                          color: #656d76; 
+                          border-top: 1px solid #d1d9e0; 
+                        }
+                        .button { 
+                          background: ${statusColor}; 
+                          color: white; 
+                          text-decoration: none; 
+                          padding: 8px 16px; 
+                          border-radius: 6px; 
+                          font-weight: 500; 
+                          display: inline-block; 
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>${statusEmoji} Weather App Kubernetes</h1>
+                            <p>${isSuccess ? 'Successfully deployed to Kubernetes' : 'Deployment to Kubernetes failed'}</p>
+                        </div>
+                        <div class="content">
+                            <div class="status">${statusEmoji} ${statusText}</div>
+                            
+                            <p><strong>Repository:</strong> ${GITHUB_REPOSITORY}</p>
+                            <p><strong>Author:</strong> ${GITHUB_ACTOR}</p>
+                            <p><strong>Commit:</strong> ${GIT_SHA}</p>
+                            <p><strong>Docker Image:</strong> jouk2310/weather-app:latest</p>
+                            <p><strong>Namespace:</strong> default</p>
+                            <p><strong>Deployment Time:</strong> ${new Date().toISOString()}</p>
+                            
+                            <a href="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" class="button">View Deployment Logs</a>
+                        </div>
+                        <div class="footer">
+                            Automated notification from GitHub Actions CI/CD<br>
+                            Weather App © 2024
+                        </div>
+                    </div>
+                </body>
+                </html>
+              `;
+
+              const mailOptions = {
+                from: `Weather App CI/CD <${MAIL_USERNAME}>`,
+                to: MAIL_TO,
+                subject: `${statusEmoji} Weather App - Kubernetes ${statusText}`,
+                html: htmlBody
+              };
+
+              const info = await transporter.sendMail(mailOptions);
+              console.log("✅ Kubernetes deployment email sent successfully:", info.messageId);
+
+            } catch (error) {
+              console.error("❌ Error sending Kubernetes deployment email:", error);
+              process.exit(1);
+            }
+          })();
+          CJSEOF
+
+          node send-k8s-email.cjs
