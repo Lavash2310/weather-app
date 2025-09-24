@@ -34,6 +34,9 @@ jobs:
           wind=$(jq -r '.wind.speed // ""' weather.json)
           city=$(jq -r '.name // ""' weather.json)
           country=$(jq -r '.sys.country // ""' weather.json)
+          pressure=$(jq -r '.main.pressure // ""' weather.json)
+          visibility=$(jq -r '.visibility // ""' weather.json)
+          icon=$(jq -r '.weather[0].icon // ""' weather.json)
 
           echo "temp=$temp" >> $GITHUB_OUTPUT
           echo "feels=$feels" >> $GITHUB_OUTPUT
@@ -42,52 +45,302 @@ jobs:
           echo "wind=$wind" >> $GITHUB_OUTPUT
           echo "city=$city" >> $GITHUB_OUTPUT
           echo "country=$country" >> $GITHUB_OUTPUT
+          echo "pressure=$pressure" >> $GITHUB_OUTPUT
+          echo "visibility=$visibility" >> $GITHUB_OUTPUT
+          echo "icon=$icon" >> $GITHUB_OUTPUT
 
-      - name: Send weather email
-        uses: dawidd6/action-send-mail@v3
+      - name: Setup Node.js for weather email
+        uses: actions/setup-node@v4
         with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: maksymromanyuk0@gmail.com
-          password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "Погода — ${{ steps.get_weather.outputs.city }}, ${{ steps.get_weather.outputs.country }} — ${{ steps.get_weather.outputs.temp }}°C"
-          to: maksymromanyuk0@gmail.com
-          from: maksymromanyuk0@gmail.com
-          content_type: text/html
-          body: |
-            <!doctype html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width,initial-scale=1">
-              <title>Погода — ${{ steps.get_weather.outputs.city }}</title>
-              <style>
-                body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-                .card { max-width:600px; margin:20px auto; background:#fff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden;}
-                .header { padding:16px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
-                .header h1 { margin:0; font-size:18px; }
-                .content { padding:18px; color:#111; line-height:1.4; }
-                .metric { font-family:monospace; display:inline-block; padding:6px 10px; background:#f6f8fa; border-radius:6px; }
-                .footer { padding:12px 16px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <div class="header">
-                  <h1>Погода — ${{ steps.get_weather.outputs.city }}, ${{ steps.get_weather.outputs.country }}</h1>
-                </div>
-                <div class="content">
-                  <p><strong>Опис:</strong> ${{ steps.get_weather.outputs.desc }}</p>
-                  <p><strong>Температура:</strong> <span class="metric">${{ steps.get_weather.outputs.temp }} °C</span></p>
-                  <p><strong>Відчувається як:</strong> <span class="metric">${{ steps.get_weather.outputs.feels }} °C</span></p>
-                  <p><strong>Вологість:</strong> <span class="metric">${{ steps.get_weather.outputs.humidity }}%</span></p>
-                  <p><strong>Швидкість вітру:</strong> <span class="metric">${{ steps.get_weather.outputs.wind }} m/s</span></p>
-                  <hr>
-                  <p style="margin:0;">Це автоматичне щогодинне повідомлення. Джерело: OpenWeatherMap.</p>
-                </div>
-                <div class="footer">
-                  GitHub Actions • Run ${{ github.run_id }}
-                </div>
-              </div>
-            </body>
-            </html>
+          node-version: 18
+
+      - name: Install nodemailer
+        run: npm install nodemailer
+
+      - name: Send weather email via Nodemailer
+        env:
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          WEATHER_TEMP: ${{ steps.get_weather.outputs.temp }}
+          WEATHER_FEELS: ${{ steps.get_weather.outputs.feels }}
+          WEATHER_DESC: ${{ steps.get_weather.outputs.desc }}
+          WEATHER_HUMIDITY: ${{ steps.get_weather.outputs.humidity }}
+          WEATHER_WIND: ${{ steps.get_weather.outputs.wind }}
+          WEATHER_CITY: ${{ steps.get_weather.outputs.city }}
+          WEATHER_COUNTRY: ${{ steps.get_weather.outputs.country }}
+          WEATHER_PRESSURE: ${{ steps.get_weather.outputs.pressure }}
+          WEATHER_VISIBILITY: ${{ steps.get_weather.outputs.visibility }}
+          WEATHER_ICON: ${{ steps.get_weather.outputs.icon }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [ -z "$SMTP_PASSWORD" ]; then
+            echo "::error::SMTP_PASSWORD secret is empty. Add Gmail App Password to repo secrets."
+            exit 1
+          fi
+
+          cat > send-weather-email.cjs <<'CJSEOF'
+          const nodemailer = require("nodemailer");
+
+          (async () => {
+            try {
+              const SMTP_USERNAME = process.env.SMTP_USERNAME;
+              const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
+              const MAIL_TO = process.env.MAIL_TO;
+              const WEATHER_TEMP = process.env.WEATHER_TEMP;
+              const WEATHER_FEELS = process.env.WEATHER_FEELS;
+              const WEATHER_DESC = process.env.WEATHER_DESC;
+              const WEATHER_HUMIDITY = process.env.WEATHER_HUMIDITY;
+              const WEATHER_WIND = process.env.WEATHER_WIND;
+              const WEATHER_CITY = process.env.WEATHER_CITY;
+              const WEATHER_COUNTRY = process.env.WEATHER_COUNTRY;
+              const WEATHER_PRESSURE = process.env.WEATHER_PRESSURE;
+              const WEATHER_VISIBILITY = process.env.WEATHER_VISIBILITY;
+              const WEATHER_ICON = process.env.WEATHER_ICON;
+              const RUN_ID = process.env.RUN_ID;
+
+              console.log("Weather Email From:", SMTP_USERNAME);
+              console.log("Weather Email To:", MAIL_TO);
+              console.log("Weather for:", `${WEATHER_CITY}, ${WEATHER_COUNTRY}`);
+              console.log("Temperature:", `${WEATHER_TEMP}°C`);
+
+              const transporter = nodemailer.createTransporter({
+                service: 'gmail',
+                auth: {
+                  user: SMTP_USERNAME,
+                  pass: SMTP_PASSWORD
+                }
+              });
+
+              await transporter.verify();
+              console.log("✔ SMTP connection verified for weather email");
+
+              function getWeatherEmoji(icon, description) {
+                const iconMap = {
+                  '01d': '☀️', '01n': '🌙',
+                  '02d': '⛅', '02n': '☁️',
+                  '03d': '☁️', '03n': '☁️',
+                  '04d': '☁️', '04n': '☁️',
+                  '09d': '🌧️', '09n': '🌧️',
+                  '10d': '🌦️', '10n': '🌧️',
+                  '11d': '⛈️', '11n': '⛈️',
+                  '13d': '🌨️', '13n': '🌨️',
+                  '50d': '🌫️', '50n': '🌫️'
+                };
+                return iconMap[icon] || '🌤️';
+              }
+
+              // Функція для визначення кольору температури
+              function getTempColor(temp) {
+                const t = parseFloat(temp);
+                if (t >= 25) return '#e74c3c'; // Червоний (спекотно)
+                if (t >= 15) return '#f39c12'; // Помаранчевий (тепло)
+                if (t >= 5) return '#3498db';  // Синій (прохолодно)
+                return '#9b59b6'; // Фіолетовий (холодно)
+              }
+
+              const currentTime = new Date().toLocaleString('uk-UA', {
+                timeZone: 'Europe/Kiev',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+
+              const weatherEmoji = getWeatherEmoji(WEATHER_ICON, WEATHER_DESC);
+              const tempColor = getTempColor(WEATHER_TEMP);
+
+              const htmlBody = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width,initial-scale=1">
+                    <title>Погода — ${WEATHER_CITY}</title>
+                    <style>
+                        body { 
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                          margin: 0; 
+                          padding: 0; 
+                          background-color: #f6f8fa; 
+                        }
+                        .container { 
+                          max-width: 600px; 
+                          margin: 0 auto; 
+                          background: #ffffff; 
+                          border: 1px solid #d1d9e0; 
+                          border-radius: 6px; 
+                        }
+                        .header { 
+                          background: linear-gradient(90deg, #1f6feb, #3ec1ff); 
+                          color: white; 
+                          padding: 20px; 
+                          text-align: center; 
+                        }
+                        .header h1 { 
+                          margin: 0; 
+                          font-size: 20px; 
+                          font-weight: 600; 
+                        }
+                        .weather-main {
+                          text-align: center;
+                          padding: 30px 20px;
+                          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                          color: white;
+                        }
+                        .weather-icon {
+                          font-size: 60px;
+                          margin-bottom: 10px;
+                        }
+                        .temp-main {
+                          font-size: 48px;
+                          font-weight: bold;
+                          margin: 10px 0;
+                          color: ${tempColor};
+                          text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+                        }
+                        .weather-desc {
+                          font-size: 18px;
+                          margin-bottom: 20px;
+                          text-transform: capitalize;
+                        }
+                        .content { 
+                          padding: 24px; 
+                        }
+                        .weather-grid {
+                          display: grid;
+                          grid-template-columns: repeat(2, 1fr);
+                          gap: 16px;
+                          margin: 20px 0;
+                        }
+                        .weather-item {
+                          background: #f6f8fa;
+                          padding: 16px;
+                          border-radius: 6px;
+                          border: 1px solid #d1d9e0;
+                          text-align: center;
+                        }
+                        .weather-item-label {
+                          font-size: 12px;
+                          color: #656d76;
+                          font-weight: 500;
+                          margin-bottom: 8px;
+                          text-transform: uppercase;
+                        }
+                        .weather-item-value {
+                          font-size: 24px;
+                          font-weight: bold;
+                          color: #24292f;
+                          font-family: 'Monaco', 'Menlo', monospace;
+                        }
+                        .location-info {
+                          background: #e3f2fd;
+                          border: 1px solid #2196F3;
+                          border-radius: 6px;
+                          padding: 16px;
+                          margin: 20px 0;
+                          text-align: center;
+                        }
+                        .location-info strong {
+                          color: #1976D2;
+                          font-size: 18px;
+                        }
+                        .time-info {
+                          color: #656d76;
+                          font-size: 14px;
+                          margin-top: 20px;
+                          padding: 16px;
+                          background: #f6f8fa;
+                          border-radius: 6px;
+                          text-align: center;
+                        }
+                        .footer { 
+                          background: #f6f8fa; 
+                          padding: 16px; 
+                          text-align: center; 
+                          font-size: 12px; 
+                          color: #656d76; 
+                          border-top: 1px solid #d1d9e0; 
+                        }
+                        @media (max-width: 480px) {
+                          .weather-grid {
+                            grid-template-columns: 1fr;
+                          }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>🌤️ Щогодинна погода</h1>
+                        </div>
+                        
+                        <div class="weather-main">
+                            <div class="weather-icon">${weatherEmoji}</div>
+                            <div class="temp-main">${WEATHER_TEMP}°C</div>
+                            <div class="weather-desc">${WEATHER_DESC}</div>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="location-info">
+                                <strong>📍 ${WEATHER_CITY}, ${WEATHER_COUNTRY}</strong>
+                            </div>
+                            
+                            <div class="weather-grid">
+                                <div class="weather-item">
+                                    <div class="weather-item-label">🌡️ Відчувається</div>
+                                    <div class="weather-item-value">${WEATHER_FEELS}°C</div>
+                                </div>
+                                <div class="weather-item">
+                                    <div class="weather-item-label">💧 Вологість</div>
+                                    <div class="weather-item-value">${WEATHER_HUMIDITY}%</div>
+                                </div>
+                                <div class="weather-item">
+                                    <div class="weather-item-label">💨 Вітер</div>
+                                    <div class="weather-item-value">${WEATHER_WIND} м/с</div>
+                                </div>
+                                <div class="weather-item">
+                                    <div class="weather-item-label">🌊 Тиск</div>
+                                    <div class="weather-item-value">${WEATHER_PRESSURE} гПа</div>
+                                </div>
+                            </div>
+
+                            ${WEATHER_VISIBILITY && WEATHER_VISIBILITY !== 'null' ? `
+                            <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 16px; margin: 16px 0; text-align: center;">
+                                <strong>👁️ Видимість:</strong> ${Math.round(WEATHER_VISIBILITY / 1000)} км
+                            </div>
+                            ` : ''}
+                            
+                            <div class="time-info">
+                                <strong>⏰ Оновлено:</strong> ${currentTime}
+                            </div>
+                        </div>
+                        
+                        <div class="footer">
+                            Автоматичне щогодинне повідомлення від GitHub Actions<br>
+                            Джерело: OpenWeatherMap • Run ${RUN_ID}
+                        </div>
+                    </div>
+                </body>
+                </html>
+              `;
+
+              const mailOptions = {
+                from: `Weather App <${SMTP_USERNAME}>`,
+                to: MAIL_TO,
+                subject: `${weatherEmoji} Погода — ${WEATHER_CITY}, ${WEATHER_COUNTRY} — ${WEATHER_TEMP}°C`,
+                html: htmlBody
+              };
+
+              const info = await transporter.sendMail(mailOptions);
+              console.log("✅ Weather email sent successfully:", info.messageId);
+
+            } catch (error) {
+              console.error("❌ Error sending weather email:", error);
+              process.exit(1);
+            }
+          })();
+          CJSEOF
+
+          node send-weather-email.cjs

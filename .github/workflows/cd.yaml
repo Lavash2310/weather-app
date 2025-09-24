@@ -92,8 +92,8 @@ jobs:
 
       - name: Send Docker Build Email
         env:
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
           DOCKER_IMAGE: ${{ needs.Docker.outputs.image || 'jouk2310/weather-app:latest' }}
           BUILD_STATUS: ${{ needs.Docker.result }}
@@ -103,8 +103,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          if [ -z "$MAIL_PASSWORD" ]; then
-            echo "::error::MAIL_PASSWORD secret is empty. Add Gmail App Password to repo secrets."
+          if [ -z "$SMTP_PASSWORD" ]; then
+            echo "::error::SMTP_PASSWORD secret is empty. Add Gmail App Password to repo secrets."
             exit 1
           fi
 
@@ -113,8 +113,8 @@ jobs:
 
           (async () => {
             try {
-              const MAIL_USERNAME = process.env.MAIL_USERNAME;
-              const MAIL_PASSWORD = process.env.MAIL_PASSWORD;
+              const SMTP_USERNAME = process.env.SMTP_USERNAME;
+              const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
               const MAIL_TO = process.env.MAIL_TO;
               const DOCKER_IMAGE = process.env.DOCKER_IMAGE;
               const BUILD_STATUS = process.env.BUILD_STATUS;
@@ -124,7 +124,7 @@ jobs:
               const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
               const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
 
-              console.log("Email From:", MAIL_USERNAME);
+              console.log("Email From:", SMTP_USERNAME);
               console.log("Email To:", MAIL_TO);
               console.log("Build Status:", BUILD_STATUS);
               console.log("Docker Image:", DOCKER_IMAGE);
@@ -132,8 +132,8 @@ jobs:
               const transporter = nodemailer.createTransporter({
                 service: 'gmail',
                 auth: {
-                  user: MAIL_USERNAME,
-                  pass: MAIL_PASSWORD
+                  user: SMTP_USERNAME,
+                  pass: SMTP_PASSWORD
                 }
               });
 
@@ -297,7 +297,7 @@ jobs:
               `;
 
               const mailOptions = {
-                from: `Weather App CI/CD <${MAIL_USERNAME}>`,
+                from: `Weather App CI/CD <$SMTP_USERNAME}>`,
                 to: MAIL_TO,
                 subject: `${statusEmoji} Weather App - Docker ${statusText}`,
                 html: htmlBody
@@ -332,9 +332,9 @@ jobs:
 
       - name: Send Kubernetes Deployment Email
         env:
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          MAIL_TO: ${{ secrets.SMTP_USERNAME }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
           DEPLOYMENT_STATUS: ${{ needs.Kubernetes_Deploy.result }}
           GIT_SHA: ${{ github.sha }}
           RUN_ID: ${{ github.run_id }}
@@ -346,8 +346,8 @@ jobs:
 
           (async () => {
             try {
-              const MAIL_USERNAME = process.env.MAIL_USERNAME;
-              const MAIL_PASSWORD = process.env.MAIL_PASSWORD;
+              const SMTP_USERNAME = process.env.SMTP_USERNAME;
+              const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
               const MAIL_TO = process.env.MAIL_TO;
               const DEPLOYMENT_STATUS = process.env.DEPLOYMENT_STATUS;
               const GIT_SHA = process.env.GIT_SHA;
@@ -360,8 +360,8 @@ jobs:
               const transporter = nodemailer.createTransporter({
                 service: 'gmail',
                 auth: {
-                  user: MAIL_USERNAME,
-                  pass: MAIL_PASSWORD
+                  user: SMTP_USERNAME,
+                  pass: SMTP_PASSWORD
                 }
               });
 
@@ -463,7 +463,7 @@ jobs:
               `;
 
               const mailOptions = {
-                from: `Weather App CI/CD <${MAIL_USERNAME}>`,
+                from: `Weather App CI/CD <${SMTP_USERNAME}>`,
                 to: MAIL_TO,
                 subject: `${statusEmoji} Weather App - Kubernetes ${statusText}`,
                 html: htmlBody
