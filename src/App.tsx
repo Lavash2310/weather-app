@@ -12,6 +12,9 @@ interface WeatherData {
 
 const API_KEY = import.meta.env.VITE_API_KEY;
 
+// Debug: Check if API key is loaded
+console.log('API Key loaded:', API_KEY ? 'Yes' : 'No');
+
 const App: React.FC = () => {
   const [city, setCity] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
