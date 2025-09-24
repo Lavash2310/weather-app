@@ -87,90 +87,111 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install nodemailer
-        run: npm install nodemailer
-
-      - name: Send HTML email
+      - name: Prepare node_modules
         run: |
-          cat > send-email.js <<'EOF'
+          npm init -y
+          npm install nodemailer
+
+      - name: Send HTML email (with debug logs)
+        env:
+          SMTP_USER: ${{ secrets.EMAIL_USER || 'maksymromanyuk0@gmail.com' }}
+          SMTP_PASS: ${{ secrets.SMTP_PASSWORD }}
+          IMAGE: ${{ needs.Docker.outputs.image }}
+          BUILD_STATUS: ${{ needs.Docker.result }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_REF: ${{ github.ref }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [ -z "$SMTP_PASS" ]; then
+            echo "::error::SMTP_PASSWORD secret is empty. Add App Password to repo secrets as SMTP_PASSWORD."
+            exit 1
+          fi
+
+          cat > send-email.js <<'NODEEOF'
           const nodemailer = require("nodemailer");
 
-          async function main() {
-            const transporter = nodemailer.createTransport({
-              service: "gmail",
-              auth: {
-                user: "maksymromanyuk0@gmail.com",
-                pass: "${{ secrets.SMTP_PASSWORD }}",
-              },
-            });
+          (async () => {
+            try {
+              const SMTP_USER = process.env.SMTP_USER;
+              const SMTP_PASS = process.env.SMTP_PASS;
+              const IMAGE = process.env.IMAGE || "unknown";
+              const BUILD_STATUS = process.env.BUILD_STATUS || "unknown";
+              const GIT_SHA = process.env.GIT_SHA || "unknown";
+              const GIT_REF = process.env.GIT_REF || "unknown";
+              const RUN_ID = process.env.RUN_ID || "unknown";
 
-            await transporter.sendMail({
-              from: '"GitHub Actions" <maksymromanyuk0@gmail.com>',
-              to: "maksymromanyuk0@gmail.com",
-              subject: "Docker image pushed: ${{ needs.Docker.outputs.image }}",
-              html: `
-            <!doctype html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width,initial-scale=1">
-              <title>Docker image pushed</title>
-              <style>
-                body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-                .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
-                .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
-                .header h1 { margin:0; font-size:18px; }
-                .content { padding:20px; color:#111; line-height:1.4; }
-                .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
-                .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
-                .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
-                .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
-                @media only screen and (max-width:480px) {
-                  .card { margin:10px; }
-                  .header h1 { font-size:16px; }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <div class="header">
-                  <h1>Docker image built & pushed</h1>
-                </div>
-                <div class="content">
-                  <p class="meta">Build status: <strong>${{ job.status }}</strong></p>
-                  <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
-                  <p>
-                    <strong>Image:</strong>
-                    <span class="code">${{ needs.Docker.outputs.image }}</span>
-                  </p>
-                  <p>
-                    <strong>Commit:</strong>
-                    <span class="code">${{ github.sha }}</span>
-                  </p>
-                  <p>
-                    <strong>Ref:</strong> <span class="code">${{ github.ref }}</span>
-                  </p>
-                  <p>
-                    <a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a>
-                  </p>
-                  <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
-                  <p style="margin:0;">
-                    Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.
-                  </p>
-                </div>
-                <div class="footer">
-                  CI System • GitHub Actions • Run: ${{ github.run_id }}
-                </div>
-              </div>
-            </body>
-            </html>
-                        `,
-                      });
+              console.log("SMTP_USER:", SMTP_USER ? SMTP_USER.replace(/(.{3}).+(@.+)/, "$1***$2") : "(missing)");
+              console.log("Using image:", IMAGE);
+              console.log("Build status:", BUILD_STATUS);
 
-                      console.log("✅ Email sent successfully!");
-                    }
+              const transporter = nodemailer.createTransport({
+                host: "smtp.gmail.com",
+                port: 587,
+                secure: false,
+                auth: { user: SMTP_USER, pass: SMTP_PASS },
+                logger: true,
+                debug: true
+              });
 
-                    main().catch(console.error);
-                    EOF
+              // verify connection configuration
+              await new Promise((res, rej) => {
+                transporter.verify((err, success) => {
+                  if (err) {
+                    console.error("✖ transporter.verify() failed:", err && err.message);
+                    return rej(err);
+                  }
+                  console.log("✔ transporter.verify(): SMTP connection ok");
+                  res(success);
+                });
+              });
+
+              const htmlBody = `<!doctype html>
+          <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Docker image pushed</title>
+          <style>
+          body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+          .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
+          .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
+          .header h1 { margin:0; font-size:18px; }
+          .content { padding:20px; color:#111; line-height:1.4; }
+          .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
+          .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
+          .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
+          .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
+          </style></head><body>
+          <div class="card"><div class="header"><h1>Docker image built & pushed</h1></div><div class="content">
+          <p class="meta">Build status: <strong>${BUILD_STATUS}</strong></p>
+          <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
+          <p><strong>Image:</strong> <span class="code">${IMAGE}</span></p>
+          <p><strong>Commit:</strong> <span class="code">${GIT_SHA}</span></p>
+          <p><strong>Ref:</strong> <span class="code">${GIT_REF}</span></p>
+          <p><a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a></p>
+          <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
+          <p style="margin:0;">Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.</p>
+          </div><div class="footer">CI System • GitHub Actions • Run: ${RUN_ID}</div></div></body></html>`;
+
+                        const mailOptions = {
+                          from: `"GitHub Actions" <${SMTP_USER}>`,
+                          to: SMTP_USER,
+                          subject: `Docker image pushed: ${IMAGE}`,
+                          html: htmlBody
+                        };
+
+                        transporter.sendMail(mailOptions, (err, info) => {
+                          if (err) {
+                            console.error("❌ sendMail error:", err && err.message);
+                            if (err.response) console.error("SMTP response:", err.response.toString());
+                            process.exit(1);
+                          } else {
+                            console.log("✅ Email sent:", info.response);
+                          }
+                        });
+                      } catch (e) {
+                        console.error("Unhandled error:", e && e.message);
+                        if (e && e.stack) console.error(e.stack);
+                        process.exit(1);
+                      }
+                    })();
+          NODEEOF
 
                     node send-email.js
