@@ -7,6 +7,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * *"
 
 jobs:
   Build:
@@ -140,6 +142,11 @@ jobs:
           file: ./Dockerfile
           sbom: true
 
+      - name: Set image output
+        id: set-image
+        run: |
+          echo "image=jouk2310/weather-app:${{ github.sha }}" >> $GITHUB_OUTPUT
+
   Kubernetes_Deploy:
     needs: Docker
     runs-on: self-hosted
@@ -175,3 +182,171 @@ jobs:
 
       - name: Show resources
         run: kubectl get pods,svc,ingress -n default -o wide
+
+  Notify_Email:
+    needs: Docker
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Send HTML email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: maksymromanyuk0@gmail.com
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Docker image pushed: ${{ needs.Docker.outputs.image }}"
+          to: maksymromanyuk0@gmail.com
+          from: maksymromanyuk0@gmail.com
+          content_type: text/html
+          body: |
+            <!doctype html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>Docker image pushed</title>
+              <style>
+                body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+                .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
+                .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
+                .header h1 { margin:0; font-size:18px; }
+                .content { padding:20px; color:#111; line-height:1.4; }
+                .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
+                .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
+                .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
+                .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
+                @media only screen and (max-width:480px) {
+                  .card { margin:10px; }
+                  .header h1 { font-size:16px; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="card">
+                <div class="header">
+                  <h1>Docker image built & pushed</h1>
+                </div>
+                <div class="content">
+                  <p class="meta">Build status: <strong>${{ job.status }}</strong></p>
+
+                  <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
+
+                  <p>
+                    <strong>Image:</strong>
+                    <span class="code">${{ needs.Docker.outputs.image }}</span>
+                  </p>
+
+                  <p>
+                    <strong>Commit:</strong>
+                    <span class="code">${{ github.sha }}</span>
+                  </p>
+
+                  <p>
+                    <strong>Ref:</strong> <span class="code">${{ github.ref }}</span>
+                  </p>
+
+                  <p>
+                    <a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a>
+                  </p>
+
+                  <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
+
+                  <p style="margin:0;">
+                    Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.
+                  </p>
+                </div>
+
+                <div class="footer">
+                  CI System • GitHub Actions • Run: ${{ github.run_id }}
+                </div>
+              </div>
+            </body>
+            </html>
+
+  Hourly_Weather:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install jq and curl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Fetch weather from OpenWeatherMap
+        id: get_weather
+        env:
+          OWM_KEY: ${{ secrets.WEATHER_API_KEY }}
+          LOC: ${{ secrets.WEATHER_LOCATION || 'Kyiv,UA' }}
+        run: |
+          URL="https://api.openweathermap.org/data/2.5/weather?q=${LOC}&appid=$OWM_KEY&units=metric&lang=uk"
+          echo "Calling: $URL"
+          resp=$(curl -sS "$URL")
+          echo "$resp" > weather.json
+
+          temp=$(jq -r '.main.temp // ""' weather.json)
+          feels=$(jq -r '.main.feels_like // ""' weather.json)
+          desc=$(jq -r '.weather[0].description // ""' weather.json)
+          humidity=$(jq -r '.main.humidity // ""' weather.json)
+          wind=$(jq -r '.wind.speed // ""' weather.json)
+          city=$(jq -r '.name // ""' weather.json)
+          country=$(jq -r '.sys.country // ""' weather.json)
+
+          echo "temp=$temp" >> $GITHUB_OUTPUT
+          echo "feels=$feels" >> $GITHUB_OUTPUT
+          echo "desc=$desc" >> $GITHUB_OUTPUT
+          echo "humidity=$humidity" >> $GITHUB_OUTPUT
+          echo "wind=$wind" >> $GITHUB_OUTPUT
+          echo "city=$city" >> $GITHUB_OUTPUT
+          echo "country=$country" >> $GITHUB_OUTPUT
+
+      - name: Send weather email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: maksymromanyuk0@gmail.com
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Погода — ${{ steps.get_weather.outputs.city }}, ${{ steps.get_weather.outputs.country }} — ${{ steps.get_weather.outputs.temp }}°C"
+          to: maksymromanyuk0@gmail.com
+          from: maksymromanyuk0@gmail.com
+          content_type: text/html
+          body: |
+            <!doctype html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>Погода — ${{ steps.get_weather.outputs.city }}</title>
+              <style>
+                body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+                .card { max-width:600px; margin:20px auto; background:#fff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden;}
+                .header { padding:16px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
+                .header h1 { margin:0; font-size:18px; }
+                .content { padding:18px; color:#111; line-height:1.4; }
+                .metric { font-family:monospace; display:inline-block; padding:6px 10px; background:#f6f8fa; border-radius:6px; }
+                .footer { padding:12px 16px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
+              </style>
+            </head>
+            <body>
+              <div class="card">
+                <div class="header">
+                  <h1>Погода — ${{ steps.get_weather.outputs.city }}, ${{ steps.get_weather.outputs.country }}</h1>
+                </div>
+                <div class="content">
+                  <p><strong>Опис:</strong> ${{ steps.get_weather.outputs.desc }}</p>
+                  <p><strong>Температура:</strong> <span class="metric">${{ steps.get_weather.outputs.temp }} °C</span></p>
+                  <p><strong>Відчувається як:</strong> <span class="metric">${{ steps.get_weather.outputs.feels }} °C</span></p>
+                  <p><strong>Вологість:</strong> <span class="metric">${{ steps.get_weather.outputs.humidity }}%</span></p>
+                  <p><strong>Швидкість вітру:</strong> <span class="metric">${{ steps.get_weather.outputs.wind }} m/s</span></p>
+                  <hr>
+                  <p style="margin:0;">Це автоматичне щогодинне повідомлення. Джерело: OpenWeatherMap.</p>
+                </div>
+                <div class="footer">
+                  GitHub Actions • Run ${{ github.run_id }}
+                </div>
+              </div>
+            </body>
+            </html>
