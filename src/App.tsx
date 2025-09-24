@@ -28,29 +28,51 @@ const App: React.FC = () => {
     e.preventDefault();
     if (!city.trim()) return;
 
+    if (!API_KEY) {
+      setError('API key is missing. Please check your .env file.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city.trim())}&appid=${API_KEY}&units=metric`;
+      console.log('Making request to:', url.replace(API_KEY, 'API_KEY_HIDDEN'));
+      
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`
+        url
       );
       
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
       if (!response.ok) {
-        throw new Error('City not found');
+        const errorData = await response.json().catch(() => null);
+        console.log('Error response:', errorData);
+        
+        if (response.status === 401) {
+          throw new Error('Invalid API key. Please check your OpenWeatherMap API key.');
+        } else if (response.status === 404) {
+          throw new Error(`City "${city}" not found. Please check the spelling.`);
+        } else {
+          throw new Error(`Error ${response.status}: ${errorData?.message || 'Failed to fetch weather data'}`);
+        }
       }
 
       const data = await response.json();
+      console.log('Weather data:', data);
       
       setWeather({
         temperature: Math.round(data.main.temp),
         humidity: data.main.humidity,
-        windSpeed: Math.round(data.wind.speed),
+        windSpeed: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
         description: data.weather[0].description,
         city: data.name,
         icon: data.weather[0].icon
       });
     } catch (err) {
+      console.error('Weather API error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
     } finally {
       setLoading(false);
