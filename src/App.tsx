@@ -33,22 +33,23 @@ const App: React.FC = () => {
 
     try {
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`
+        `https://api.weatherapi.com/v1/current.json?key=${API_KEY}&q=${encodeURIComponent(city)}&aqi=no`
       );
       
       if (!response.ok) {
-        throw new Error('City not found');
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'City not found');
       }
 
       const data = await response.json();
       
       setWeather({
-        temperature: Math.round(data.main.temp),
-        humidity: data.main.humidity,
-        windSpeed: Math.round(data.wind.speed),
-        description: data.weather[0].description,
-        city: data.name,
-        icon: data.weather[0].icon
+        temperature: Math.round(data.current.temp_c),
+        humidity: data.current.humidity,
+        windSpeed: Math.round(data.current.wind_kph),
+        description: data.current.condition.text,
+        city: data.location.name,
+        icon: data.current.condition.icon
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
@@ -118,7 +119,7 @@ const App: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-2">{weather.city}</h2>
                 <div className="flex items-center justify-center mb-2">
                   <img 
-                    src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
+                    src={`https:${weather.icon}`}
                     alt={weather.description}
                     className="w-16 h-16"
                   />
@@ -147,7 +148,7 @@ const App: React.FC = () => {
                   <Wind className="text-purple-500 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Wind Speed</p>
-                    <p className="text-xl font-bold">{weather.windSpeed} km/h</p>
+                    <p className="text-xl font-bold">{weather.windSpeed} kph</p>
                   </div>
                 </div>
               </div>
