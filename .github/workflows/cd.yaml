@@ -94,7 +94,7 @@ jobs:
         env:
           SMTP_USER: ${{ secrets.EMAIL_USER || 'maksymromanyuk0@gmail.com' }}
           SMTP_PASS: ${{ secrets.SMTP_PASSWORD }}
-          IMAGE: ${{ needs.Docker.outputs.image }}
+          IMAGE: ${{ needs.Docker.outputs.set-image }}
           BUILD_STATUS: ${{ needs.Docker.result }}
           GIT_SHA: ${{ github.sha }}
           GIT_REF: ${{ github.ref }}
