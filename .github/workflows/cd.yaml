@@ -85,14 +85,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
-      - name: Prepare node_modules
-        run: |
-          npm init -y
-          npm install nodemailer
+      - name: Install nodemailer
+        run: npm install nodemailer
 
-      - name: Send HTML email (with debug logs)
+      - name: Create and run send-email.cjs (CommonJS) with debug
         env:
           SMTP_USER: ${{ secrets.EMAIL_USER || 'maksymromanyuk0@gmail.com' }}
           SMTP_PASS: ${{ secrets.SMTP_PASSWORD }}
@@ -107,7 +105,7 @@ jobs:
             exit 1
           fi
 
-          cat > send-email.js <<'NODEEOF'
+          cat > send-email.cjs <<'CJSEOF'
           const nodemailer = require("nodemailer");
 
           (async () => {
@@ -121,8 +119,8 @@ jobs:
               const RUN_ID = process.env.RUN_ID || "unknown";
 
               console.log("SMTP_USER:", SMTP_USER ? SMTP_USER.replace(/(.{3}).+(@.+)/, "$1***$2") : "(missing)");
-              console.log("Using image:", IMAGE);
-              console.log("Build status:", BUILD_STATUS);
+              console.log("IMAGE:", IMAGE);
+              console.log("BUILD_STATUS:", BUILD_STATUS);
 
               const transporter = nodemailer.createTransport({
                 host: "smtp.gmail.com",
@@ -134,41 +132,54 @@ jobs:
               });
 
               // verify connection configuration
-              await new Promise((res, rej) => {
+              await new Promise((resolve, reject) => {
                 transporter.verify((err, success) => {
                   if (err) {
                     console.error("✖ transporter.verify() failed:", err && err.message);
-                    return rej(err);
+                    return reject(err);
                   }
                   console.log("✔ transporter.verify(): SMTP connection ok");
-                  res(success);
+                  resolve(success);
                 });
               });
 
               const htmlBody = `<!doctype html>
-          <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-          <title>Docker image pushed</title>
-          <style>
-          body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-          .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
-          .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
-          .header h1 { margin:0; font-size:18px; }
-          .content { padding:20px; color:#111; line-height:1.4; }
-          .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
-          .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
-          .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
-          .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
-          </style></head><body>
-          <div class="card"><div class="header"><h1>Docker image built & pushed</h1></div><div class="content">
-          <p class="meta">Build status: <strong>${BUILD_STATUS}</strong></p>
-          <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
-          <p><strong>Image:</strong> <span class="code">${IMAGE}</span></p>
-          <p><strong>Commit:</strong> <span class="code">${GIT_SHA}</span></p>
-          <p><strong>Ref:</strong> <span class="code">${GIT_REF}</span></p>
-          <p><a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a></p>
-          <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
-          <p style="margin:0;">Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.</p>
-          </div><div class="footer">CI System • GitHub Actions • Run: ${RUN_ID}</div></div></body></html>`;
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>Docker image pushed</title>
+            <style>
+              body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+              .card { max-width:600px; margin:20px auto; background:#ffffff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
+              .header { padding:20px; background:linear-gradient(90deg,#1f6feb,#3ec1ff); color:#fff; }
+              .header h1 { margin:0; font-size:18px; }
+              .content { padding:20px; color:#111; line-height:1.4; }
+              .meta { font-size:13px; color:#6b7280; margin-bottom:12px; }
+              .btn { display:inline-block; padding:10px 16px; background:#1f6feb; color:#fff; text-decoration:none; border-radius:6px; font-weight:600; }
+              .footer { padding:16px 20px; font-size:12px; color:#8b95a5; background:#fbfdff; text-align:center; }
+              .code { background:#f6f8fa; padding:8px 10px; border-radius:6px; font-family:monospace; font-size:13px; color:#0b1220; display:inline-block; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <div class="header">
+                <h1>Docker image built & pushed</h1>
+              </div>
+              <div class="content">
+                <p class="meta">Build status: <strong>${BUILD_STATUS}</strong></p>
+                <p>Привіт! Ваш Docker image був побудований (або спроба побудувати) та ось результат:</p>
+                <p><strong>Image:</strong> <span class="code">${IMAGE}</span></p>
+                <p><strong>Commit:</strong> <span class="code">${GIT_SHA}</span></p>
+                <p><strong>Ref:</strong> <span class="code">${GIT_REF}</span></p>
+                <p><a class="btn" href="https://hub.docker.com/r/jouk2310/weather-app" target="_blank" rel="noopener">Переглянути в Docker Hub</a></p>
+                <hr style="border:none;border-top:1px solid #eef2f7;margin:18px 0;">
+                <p style="margin:0;">Якщо потрібні додаткові деталі — перевір логи workflow у GitHub Actions.</p>
+              </div>
+              <div class="footer">CI System • GitHub Actions • Run: ${RUN_ID}</div>
+            </div>
+          </body>
+          </html>`;
 
                         const mailOptions = {
                           from: `"GitHub Actions" <${SMTP_USER}>`,
@@ -192,6 +203,6 @@ jobs:
                         process.exit(1);
                       }
                     })();
-          NODEEOF
+          CJSEOF
 
-                    node send-email.js
+                    node send-email.cjs
