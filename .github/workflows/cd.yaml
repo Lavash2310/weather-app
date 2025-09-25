@@ -7,9 +7,11 @@ on:
       - completed
 
 jobs:
-  Docker:
+  Build_Backend:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: self-hosted
+    outputs:
+      backend_image: ${{ steps.set-backend-image.outputs.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,27 +25,57 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
+      - name: Build and push backend image
         uses: docker/build-push-action@v4
         with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
           tags: |
-            jouk2310/weather-app:latest
-            jouk2310/weather-app:${{ github.sha }}
-          file: ./Dockerfile
-          sbom: true
+            jouk2310/weather-backend:latest
+            jouk2310/weather-backend:${{ github.sha }}
 
-      - name: Set image output
-        id: set-image
-        run: |
-          echo "image=jouk2310/weather-app:${{ github.sha }}" >> $GITHUB_OUTPUT
+      - name: Set backend image output
+        id: set-backend-image
+        run: echo "image=jouk2310/weather-backend:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  Build_Frontend:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted
+    outputs:
+      frontend_image: ${{ steps.set-frontend-image.outputs.image }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: jouk2310
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            jouk2310/weather-frontend:latest
+            jouk2310/weather-frontend:${{ github.sha }}
+
+      - name: Set frontend image output
+        id: set-frontend-image
+        run: echo "image=jouk2310/weather-frontend:${{ github.sha }}" >> $GITHUB_OUTPUT
 
   Kubernetes_Deploy:
-    needs: Docker
+    needs: [Build_Backend, Build_Frontend]
     runs-on: self-hosted
     steps:
-      - name: Checkout source code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Write KUBECONFIG from secret
@@ -57,26 +89,33 @@ jobs:
           kubectl apply -f kubernetes/service-account.yaml
           kubectl apply -f kubernetes/role.yaml
           kubectl apply -f kubernetes/role-binding.yaml
-          kubectl apply -f kubernetes/hello-nginx.yaml
-          kubectl apply -f kubernetes/nginx-service.yaml
           kubectl apply -f kubernetes/secrets.yaml
           kubectl apply -f kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/service.yaml
+          kubectl apply -f kubernetes/ingress.yaml
+          kubectl apply -f kubernetes/service-backend.yaml
+          kubectl apply -f kubernetes/service-frontend.yaml
 
-      - name: Update deployment image
+      - name: Update deployment images
         run: |
-          IMAGE=jouk2310/weather-app:latest
-          echo "Setting image to $IMAGE"
-          kubectl set image deployment/my-app weather-app=$IMAGE -n default
+          BACKEND_IMAGE=${{ needs.Build_Backend.outputs.backend_image }}
+          FRONTEND_IMAGE=${{ needs.Build_Frontend.outputs.frontend_image }}
+
+          echo "Updating backend to $BACKEND_IMAGE"
+          kubectl set image deployment/weather-backend backend=$BACKEND_IMAGE -n default
+
+          echo "Updating frontend to $FRONTEND_IMAGE"
+          kubectl set image deployment/weather-frontend frontend=$FRONTEND_IMAGE -n default
 
       - name: Wait for rollout
-        run: kubectl rollout status deployment/my-app -n default --timeout=180s
+        run: |
+          kubectl rollout status deployment/weather-backend -n default --timeout=180s
+          kubectl rollout status deployment/weather-frontend -n default --timeout=180s
 
       - name: Show resources
         run: kubectl get pods,svc,ingress -n default -o wide
 
   Docker_Email_Notification:
-    needs: Docker
+    needs: [Build_Backend, Build_Frontend]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
@@ -95,10 +134,10 @@ jobs:
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
-          DOCKER_IMAGE: ${{ needs.Docker.outputs.image || 'jouk2310/weather-app:latest' }}
-          BUILD_STATUS: ${{ needs.Docker.result }}
+          DOCKER_IMAGE_BACKEND: ${{ needs.Build_Backend.outputs.backend_image }}
+          DOCKER_IMAGE_FRONTEND: ${{ needs.Build_Frontend.outputs.frontend_image }}
+          BUILD_STATUS: ${{ needs.Build_Backend.result }}
           GIT_SHA: ${{ github.sha }}
-          GIT_REF: ${{ github.ref }}
           RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_ACTOR: ${{ github.actor }}
@@ -316,9 +355,9 @@ jobs:
           node send-docker-email.cjs
 
   Kubernetes_Email_Notification:
-    needs: [Docker, Kubernetes_Deploy]
+    needs: [Kubernetes_Deploy]
     runs-on: ubuntu-latest
-    if: ${{ always() && needs.Docker.result == 'success' }}
+    if: ${{ always() }}
     steps:
       - uses: actions/checkout@v4
 

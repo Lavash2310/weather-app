@@ -1,13 +1,13 @@
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: my-app-service
+  name: frontend-service
   namespace: default
 spec:
   selector:
-    app: my-app
-  type: NodePort
+    app: weather-frontend
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
+  type: LoadBalancer
