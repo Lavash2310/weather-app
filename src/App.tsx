@@ -12,7 +12,6 @@ interface WeatherData {
 
 const API_KEY = import.meta.env.VITE_API_KEY;
 
-// Debug: Check if API key is loaded
 console.log('API Key loaded:', API_KEY ? 'Yes' : 'No');
 
 const App: React.FC = () => {
@@ -35,9 +34,8 @@ const App: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${API_KEY}&units=metric`
-      );
+      const response = await fetch(`/api/weather?q=${encodeURIComponent(city)}`);
+      
       
       if (!response.ok) {
         throw new Error('City not found');

@@ -1,32 +1,74 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-app
+  name: my-app-backend
   namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-app
+      app: my-app-backend
   template:
     metadata:
       labels:
-        app: my-app
+        app: my-app-backend
     spec:
       serviceAccountName: my-app-sa
       containers:
-        - name: weather-app
-          image: jouk2310/weather-app:latest
-          imagePullPolicy: Never
+        - name: backend
+          image: jouk2310/weather-backend:latest
+          imagePullPolicy: Always
           ports:
-            - name: react-app
-              containerPort: 80
+            - name: backend
+              containerPort: 5001
           env:
-            - name: WEATHER_API_KEY
+            - name: VITE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: my-app-secret
-                  key: api-key
+                  key: VITE_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-frontend
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-frontend
+  template:
+    metadata:
+      labels:
+        app: weather-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: jouk2310/weather-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
           readinessProbe:
             httpGet:
               path: /
@@ -37,8 +79,8 @@ spec:
             httpGet:
               path: /
               port: 80
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 20
           resources:
             requests:
               memory: "128Mi"
