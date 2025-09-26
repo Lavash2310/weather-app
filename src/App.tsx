@@ -10,6 +10,8 @@ interface WeatherData {
   icon: string;
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
 const App: React.FC = () => {
   const [city, setCity] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -30,7 +32,9 @@ const App: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`);
+      console.log('Backend URL:', BACKEND_URL);
+
+      const response = await fetch(`${BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`);
 
 
       
