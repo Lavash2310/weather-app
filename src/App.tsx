@@ -10,7 +10,7 @@ interface WeatherData {
   icon: string;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL = 'https://weather-backend-dde1.onrender.com';
 
 const App: React.FC = () => {
   const [city, setCity] = useState('');
@@ -32,11 +32,10 @@ const App: React.FC = () => {
     setError('');
 
     try {
-      console.log('Backend URL:', import.meta.env.VITE_BACKEND_URL);
       console.log('Backend URL:', BACKEND_URL);
 
       const response = await fetch(
-  `${import.meta.env.VITE_BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`
+  `${BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`
 );
 
 
