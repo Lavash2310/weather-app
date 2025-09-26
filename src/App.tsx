@@ -30,7 +30,8 @@ const App: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/weather?q=${city}`);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`);
+
 
       
       if (!response.ok) {
