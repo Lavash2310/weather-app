@@ -13,7 +13,12 @@ if (!API_KEY) {
   console.log('API Key loaded:', API_KEY ? 'Yes' : 'No');
 }
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://weather-frontend-7mo5.onrender.com',
+    'http://localhost:5173'
+  ]
+}));
 app.use(express.json());
 
 app.get('/api/weather', async (req, res) => {
