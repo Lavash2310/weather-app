@@ -84,31 +84,35 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
-      - name: Create API KEY secret
+      - name: Apply Kubernetes secrets
         run: |
-          kubectl create secret generic my-app-secret \
-          --from-literal=VITE_API_KEY="${{ secrets.OPENWEATHER_API_KEY }}" \
-          -n default --dry-run=client -o yaml | kubectl apply -f -
+          cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: my-app-secret
+            namespace: default
+          type: Opaque
+          stringData:
+            OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          EOF
 
-      - name: Apply Kubernetes manifests
+      - name: Delete old pods
         run: |
-          kubectl apply -f kubernetes/service-account.yaml
-          kubectl apply -f kubernetes/role.yaml
-          kubectl apply -f kubernetes/role-binding.yaml
+          kubectl delete pod -l app=weather-backend -n default --grace-period=0 --force || true
+          kubectl delete pod -l app=weather-frontend -n default --grace-period=0 --force || true
+
+      - name: Apply Kubernetes manifests and update images
+        run: |
           kubectl apply -f kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/ingress.yaml
           kubectl apply -f kubernetes/service-backend.yaml
           kubectl apply -f kubernetes/service-frontend.yaml
+          kubectl apply -f kubernetes/ingress.yaml
 
-      - name: Update deployment images
-        run: |
           BACKEND_IMAGE=${{ needs.Build_Backend.outputs.backend_image }}
           FRONTEND_IMAGE=${{ needs.Build_Frontend.outputs.frontend_image }}
 
-          echo "Updating backend to $BACKEND_IMAGE"
           kubectl set image deployment/weather-backend backend=$BACKEND_IMAGE -n default
-
-          echo "Updating frontend to $FRONTEND_IMAGE"
           kubectl set image deployment/weather-frontend frontend=$FRONTEND_IMAGE -n default
 
       - name: Wait for rollout
