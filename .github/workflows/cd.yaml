@@ -29,7 +29,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: .Dockerfile.backend
+          file: Dockerfile.backend
           push: true
           tags: |
             jouk2310/weather-backend:latest
@@ -61,7 +61,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: .Dockerfile.frontend
+          file: Dockerfile.frontend
           push: true
           tags: |
             jouk2310/weather-frontend:latest
