@@ -36,7 +36,6 @@ const App: React.FC = () => {
     try {
       const response = await fetch(`/api/weather?q=${encodeURIComponent(city)}`);
       
-      
       if (!response.ok) {
         throw new Error('City not found');
       }
@@ -44,12 +43,12 @@ const App: React.FC = () => {
       const data = await response.json();
       
       setWeather({
-        temperature: Math.round(data.main.temp),
-        humidity: data.main.humidity,
-        windSpeed: Math.round(data.wind.speed),
-        description: data.weather[0].description,
-        city: data.name,
-        icon: data.weather[0].icon
+        temperature: data.temperature,
+        humidity: data.humidity,
+        windSpeed: data.windSpeed,
+        description: data.description,
+        city: data.city,
+        icon: data.icon
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch weather data');

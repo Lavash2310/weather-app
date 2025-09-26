@@ -8,18 +8,19 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-    - host: local-weather.test
+    - host: weather.local
       http:
         paths:
-          - path: /api
-            pathType: Prefix
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: backend-service
                 port:
-                  number: 5000
-          - path: /
-            pathType: Prefix
+                  number: 5001
+
+          - path: /()(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: frontend-service

@@ -1,10 +1,11 @@
 version: '3.9'
 
 services:
-  backend:
+  backend-service:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    image: jouk2310/weather-backend:latest
     container_name: weather-backend
     environment:
       - VITE_API_KEY=1b9e38266bb16b86f8fd33e217508619
@@ -13,15 +14,16 @@ services:
     networks:
       - weather-net
 
-  frontend:
+  frontend-service:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    image: jouk2310/weather-frontend:latest
     container_name: weather-frontend
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      - backend-service
     networks:
       - weather-net
 

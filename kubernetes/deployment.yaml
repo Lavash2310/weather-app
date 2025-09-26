@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-app-backend
+  name: weather-backend
   namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-app-backend
+      app: weather-backend
   template:
     metadata:
       labels:
-        app: my-app-backend
+        app: weather-backend
     spec:
       serviceAccountName: my-app-sa
       containers:
@@ -19,14 +19,11 @@ spec:
           image: jouk2310/weather-backend:latest
           imagePullPolicy: Always
           ports:
-            - name: backend
+            - name: http
               containerPort: 5001
-          env:
-            - name: VITE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: my-app-secret
-                  key: VITE_API_KEY
+          envFrom:
+            - secretRef:
+                name: my-app-secret
           readinessProbe:
             httpGet:
               path: /health
