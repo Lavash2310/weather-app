@@ -91,13 +91,15 @@ app.get('/api/weather', async (req, res) => {
   }
 });
 
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
+    method: req.method,
+    path: req.path,
     availableEndpoints: {
-      root: '/',
-      weather: '/api/weather?q=cityname',
-      health: '/health'
+      root: 'GET /',
+      weather: 'GET /api/weather?q=cityname',
+      health: 'GET /health'
     }
   });
 });
@@ -105,8 +107,7 @@ app.use('*', (req, res) => {
 app.use((error, req, res, next) => {
   console.error('Server error:', error);
   res.status(500).json({
-    error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    error: 'Internal server error'
   });
 });
 
