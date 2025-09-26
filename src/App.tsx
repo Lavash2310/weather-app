@@ -32,9 +32,12 @@ const App: React.FC = () => {
     setError('');
 
     try {
+      console.log('Backend URL:', import.meta.env.VITE_BACKEND_URL);
       console.log('Backend URL:', BACKEND_URL);
 
-      const response = await fetch(`${BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`);
+      const response = await fetch(
+  `${import.meta.env.VITE_BACKEND_URL}/api/weather?q=${encodeURIComponent(city)}`
+);
 
 
       
