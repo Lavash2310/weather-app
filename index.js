@@ -5,6 +5,7 @@ import cors from 'cors';
 const app = express();
 const PORT = process.env.PORT || 5001;
 const API_KEY = process.env.VITE_API_KEY;
+const BACKEND = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001').replace(/\/+$/, '');
 
 if (!API_KEY) {
   console.error('Error: VITE_API_KEY is not set!');
