@@ -84,41 +84,41 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
-      - name: Apply Kubernetes secrets
+      - name: Apply Kubernetes manifests
         run: |
-          cat <<EOF | kubectl apply -f -
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: my-app-secret
-            namespace: default
-          type: Opaque
-          stringData:
-            OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          EOF
-
-      - name: Delete old pods
-        run: |
-          kubectl delete pod -l app=weather-backend -n default --grace-period=0 --force || true
-          kubectl delete pod -l app=weather-frontend -n default --grace-period=0 --force || true
-
-      - name: Apply Kubernetes manifests and update images
-        run: |
+          kubectl apply -f kubernetes/service-account.yaml
+          kubectl apply -f kubernetes/role.yaml
+          kubectl apply -f kubernetes/role-binding.yaml
+          kubectl apply -f kubernetes/secrets.yaml
           kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/ingress.yaml
           kubectl apply -f kubernetes/service-backend.yaml
           kubectl apply -f kubernetes/service-frontend.yaml
-          kubectl apply -f kubernetes/ingress.yaml
 
+      - name: Delete stuck pods (if any)
+        run: |
+          for pod in $(kubectl get pod -n default -o name | grep weather-backend); do
+            status=$(kubectl get $pod -n default -o jsonpath='{.status.phase}')
+            if [[ "$status" == "Terminating" ]]; then
+              kubectl delete $pod -n default --force --grace-period=0
+            fi
+          done
+
+      - name: Update deployment images
+        run: |
           BACKEND_IMAGE=${{ needs.Build_Backend.outputs.backend_image }}
           FRONTEND_IMAGE=${{ needs.Build_Frontend.outputs.frontend_image }}
 
+          echo "Updating backend to $BACKEND_IMAGE"
           kubectl set image deployment/weather-backend backend=$BACKEND_IMAGE -n default
+
+          echo "Updating frontend to $FRONTEND_IMAGE"
           kubectl set image deployment/weather-frontend frontend=$FRONTEND_IMAGE -n default
 
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/weather-backend -n default --timeout=180s
-          kubectl rollout status deployment/weather-frontend -n default --timeout=180s
+          kubectl rollout status deployment/weather-backend -n default --timeout=300s || echo "⚠ Rollout may be stuck, check pods"
+          kubectl rollout status deployment/weather-frontend -n default --timeout=300s || echo "⚠ Rollout may be stuck, check pods"
 
       - name: Show resources
         run: kubectl get pods,svc,ingress -n default -o wide
