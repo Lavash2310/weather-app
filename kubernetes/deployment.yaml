@@ -21,31 +21,34 @@ spec:
           ports:
             - name: http
               containerPort: 5001
-          envFrom:
-            - secretRef:
-                name: my-app-secret
+          env:
+            - name: VITE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: my-app-secret
+                  key: api-key
           readinessProbe:
             httpGet:
               path: /health
               port: 5001
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             timeoutSeconds: 5
-            periodSeconds: 20
-            failureThreshold: 3
+            periodSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /health
               port: 5001
-            initialDelaySeconds: 10
+            initialDelaySeconds: 60
             timeoutSeconds: 5
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: 20
+            failureThreshold: 6
           resources:
             requests:
               memory: "256Mi"
               cpu: "250m"
             limits:
-              memory: "512Mi"
+              memory: "256Mi"
               cpu: "500m"
 
 ---
@@ -75,13 +78,17 @@ spec:
               path: /
               port: 80
             initialDelaySeconds: 5
+            timeoutSeconds: 3
             periodSeconds: 10
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /
               port: 80
             initialDelaySeconds: 10
+            timeoutSeconds: 3
             periodSeconds: 20
+            failureThreshold: 3
           resources:
             requests:
               memory: "128Mi"
