@@ -28,20 +28,24 @@ spec:
             httpGet:
               path: /health
               port: 5001
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 20
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /health
               port: 5001
             initialDelaySeconds: 10
-            periodSeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
-              memory: "128Mi"
+              memory: "256Mi"
               cpu: "250m"
             limits:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "500m"
 
 ---
