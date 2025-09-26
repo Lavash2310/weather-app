@@ -84,12 +84,17 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
+      - name: Create API KEY secret
+        run: |
+          kubectl create secret generic my-app-secret \
+          --from-literal=VITE_API_KEY="${{ secrets.OPENWEATHER_API_KEY }}" \
+          -n default --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Kubernetes manifests
         run: |
           kubectl apply -f kubernetes/service-account.yaml
           kubectl apply -f kubernetes/role.yaml
           kubectl apply -f kubernetes/role-binding.yaml
-          kubectl apply -f kubernetes/secrets.yaml
           kubectl apply -f kubernetes/deployment.yaml
           kubectl apply -f kubernetes/ingress.yaml
           kubectl apply -f kubernetes/service-backend.yaml
