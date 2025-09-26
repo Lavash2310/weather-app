@@ -4,12 +4,13 @@ import cors from 'cors';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-const API_KEY = process.env.VITE_API_KEY;
-const BACKEND = (import.meta.env.VITE_BACKEND_URL || 'http://backend-service:5001').replace(/\/+$/, '');
+const API_KEY = process.env.API_KEY;
 
 if (!API_KEY) {
-  console.error('Error: VITE_API_KEY is not set!');
+  console.error('Error: API_KEY is not set!');
   process.exit(1);
+} else {
+  console.log('API Key loaded:', API_KEY ? 'Yes' : 'No');
 }
 
 app.use(cors());

@@ -10,10 +10,6 @@ interface WeatherData {
   icon: string;
 }
 
-const API_KEY = import.meta.env.VITE_API_KEY;
-
-console.log('API Key loaded:', API_KEY ? 'Yes' : 'No');
-
 const App: React.FC = () => {
   const [city, setCity] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -34,7 +30,8 @@ const App: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch(`/api/weather?q=${encodeURIComponent(city)}`);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/weather?q=${city}`);
+
       
       if (!response.ok) {
         throw new Error('City not found');
