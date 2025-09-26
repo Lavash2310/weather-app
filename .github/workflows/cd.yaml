@@ -162,7 +162,7 @@ jobs:
           node-version: 18
 
       - name: Install nodemailer
-        run: npm install nodemailer
+        run: npm install nodemailer --no-audit --no-fund
 
       - name: Send Render Deployment Email
         env:
@@ -181,7 +181,7 @@ jobs:
 
           (async () => {
             try {
-              const transporter = nodemailer.createTransporter({
+              const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
                   user: process.env.SMTP_USERNAME,
@@ -254,6 +254,7 @@ jobs:
 
             } catch (error) {
               console.error("❌ Error sending Render email:", error);
+              process.exit(1);
             }
           })();
           EOF
@@ -273,7 +274,7 @@ jobs:
           node-version: 18
 
       - name: Install nodemailer
-        run: npm install nodemailer
+        run: npm install nodemailer --no-audit --no-fund
 
       - name: Send Docker Build Email
         env:
@@ -301,10 +302,10 @@ jobs:
               const SMTP_USERNAME = process.env.SMTP_USERNAME;
               const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
               const MAIL_TO = process.env.MAIL_TO;
-              const DOCKER_IMAGE = process.env.DOCKER_IMAGE;
+              const DOCKER_IMAGE_BACKEND = process.env.DOCKER_IMAGE_BACKEND || '';
+              const DOCKER_IMAGE_FRONTEND = process.env.DOCKER_IMAGE_FRONTEND || '';
               const BUILD_STATUS = process.env.BUILD_STATUS;
               const GIT_SHA = process.env.GIT_SHA;
-              const GIT_REF = process.env.GIT_REF;
               const RUN_ID = process.env.RUN_ID;
               const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
               const GITHUB_ACTOR = process.env.GITHUB_ACTOR;
@@ -312,7 +313,8 @@ jobs:
               console.log("Email From:", SMTP_USERNAME);
               console.log("Email To:", MAIL_TO);
               console.log("Build Status:", BUILD_STATUS);
-              console.log("Docker Image:", DOCKER_IMAGE);
+              console.log("Backend Image:", DOCKER_IMAGE_BACKEND);
+              console.log("Frontend Image:", DOCKER_IMAGE_FRONTEND);
 
               const transporter = nodemailer.createTransport({
                 service: 'gmail',
@@ -451,8 +453,8 @@ jobs:
                                     <td>${GIT_SHA}</td>
                                 </tr>
                                 <tr>
-                                    <td>Branch:</td>
-                                    <td>${GIT_REF}</td>
+                                    <td>Run:</td>
+                                    <td>${RUN_ID}</td>
                                 </tr>
                                 <tr>
                                     <td>Build Time:</td>
@@ -463,11 +465,12 @@ jobs:
                             ${isSuccess ? `
                             <div class="docker-info">
                                 <strong>🐳 Docker Tags:</strong><br>
-                                <span class="tag">jouk2310/weather-app:latest</span>
-                                <span class="tag">${DOCKER_IMAGE}</span>
+                                <span class="tag">${DOCKER_IMAGE_BACKEND}</span>
+                                <span class="tag">${DOCKER_IMAGE_FRONTEND}</span>
                             </div>
                             
-                            <a href="https://hub.docker.com/r/jouk2310/weather-app" class="button">View on Docker Hub</a>
+                            <a href="https://hub.docker.com/r/jouk2310/weather-backend" class="button">View Backend on Docker Hub</a>
+                            <a href="https://hub.docker.com/r/jouk2310/weather-frontend" class="button">View Frontend on Docker Hub</a>
                             ` : ''}
                             
                             <a href="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" class="button">View Build Logs</a>
@@ -513,7 +516,7 @@ jobs:
           node-version: 18
 
       - name: Install nodemailer
-        run: npm install nodemailer
+        run: npm install nodemailer --no-audit --no-fund
 
       - name: Send Kubernetes Deployment Email
         env:
@@ -632,7 +635,6 @@ jobs:
                             <p><strong>Repository:</strong> ${GITHUB_REPOSITORY}</p>
                             <p><strong>Author:</strong> ${GITHUB_ACTOR}</p>
                             <p><strong>Commit:</strong> ${GIT_SHA}</p>
-                            <p><strong>Docker Image:</strong> jouk2310/weather-app:latest</p>
                             <p><strong>Namespace:</strong> default</p>
                             <p><strong>Deployment Time:</strong> ${new Date().toISOString()}</p>
                             
