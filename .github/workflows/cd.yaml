@@ -122,6 +122,8 @@ jobs:
             --client-certificate=$HOME/.minikube/profiles/minikube/client.crt \
             --client-key=$HOME/.minikube/profiles/minikube/client.key
 
+          kubectl config set-cluster minikube --server=https://127.0.0.1:62466 --insecure-skip-tls-verify=true
+
           kubectl config set-context minikube --cluster=minikube --user=minikube
           kubectl config use-context minikube
           kubectl cluster-info
