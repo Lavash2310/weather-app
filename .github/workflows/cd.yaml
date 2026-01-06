@@ -115,17 +115,20 @@ jobs:
 
       - name: Setup Kubeconfig
         run: |
-          if [ -f "$HOME/.kube/config" ]; then
-            echo "KUBECONFIG found at $HOME/.kube/config"
-            echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
-          else
-            echo "::error::Kubeconfig not found! Make sure Minikube is running."
-            exit 1
-          fi
+          export KUBECONFIG=$HOME/.kube/config
+          echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+
+          kubectl config set-credentials minikube \
+            --client-certificate=$HOME/.minikube/profiles/minikube/client.crt \
+            --client-key=$HOME/.minikube/profiles/minikube/client.key
+
+          kubectl config set-context minikube --cluster=minikube --user=minikube
+          kubectl config use-context minikube
+          kubectl cluster-info
 
       - name: Create Kubernetes Secret
         run: |
-          kubectl delete secret my-app-secret --ignore-not-found
+          kubectl delete secret my-app-secret --ignore-not-found --wait=false
           kubectl create secret generic my-app-secret \
             --from-literal=api-key="${{ secrets.OPENWEATHER_API_KEY }}" \
             --from-literal=backend-url="https://weather-backend-dde1.onrender.com"
