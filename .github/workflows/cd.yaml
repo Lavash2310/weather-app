@@ -115,10 +115,13 @@ jobs:
 
       - name: Setup Kubeconfig
         run: |
-          mkdir -p $(dirname $KUBECONFIG)
-          cp $HOME/.kube/config $KUBECONFIG
-          sed -i '' "s|/.minikube|$HOME/.minikube|g" $KUBECONFIG || true
-          kubectl config use-context minikube
+          if [ -f "$HOME/.kube/config" ]; then
+            echo "KUBECONFIG found at $HOME/.kube/config"
+            echo "KUBECONFIG=$HOME/.kube/config" >> $GITHUB_ENV
+          else
+            echo "::error::Kubeconfig not found! Make sure Minikube is running."
+            exit 1
+          fi
 
       - name: Create Kubernetes Secret
         run: |
