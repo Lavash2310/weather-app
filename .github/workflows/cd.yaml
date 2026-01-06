@@ -113,15 +113,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Write KUBECONFIG from secret
+      - name: Setup Kubeconfig
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+          export KUBECONFIG=$HOME/.kube/config
+          kubectl config use-context minikube
+          kubectl cluster-info
 
       - name: Create Kubernetes Secret
         run: |
-          kubectl delete secret generic my-app-secret --ignore-not-found
+          kubectl delete secret my-app-secret --ignore-not-found
           kubectl create secret generic my-app-secret \
             --from-literal=api-key="${{ secrets.OPENWEATHER_API_KEY }}" \
             --from-literal=backend-url="https://weather-backend-dde1.onrender.com"
