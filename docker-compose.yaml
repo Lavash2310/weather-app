@@ -10,7 +10,7 @@ services:
     environment:
       - VITE_API_KEY=1b9e38266bb16b86f8fd33e217508619
     ports:
-      - "5001:5000"
+      - "5001:5001"
     networks:
       - weather-net
 
