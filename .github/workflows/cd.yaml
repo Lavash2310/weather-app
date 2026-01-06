@@ -115,9 +115,10 @@ jobs:
 
       - name: Setup Kubeconfig
         run: |
-          export KUBECONFIG=$HOME/.kube/config
+          mkdir -p $(dirname $KUBECONFIG)
+          cp $HOME/.kube/config $KUBECONFIG
+          sed -i '' "s|/.minikube|$HOME/.minikube|g" $KUBECONFIG || true
           kubectl config use-context minikube
-          kubectl cluster-info
 
       - name: Create Kubernetes Secret
         run: |
