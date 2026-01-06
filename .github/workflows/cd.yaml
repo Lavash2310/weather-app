@@ -121,14 +121,14 @@ jobs:
 
       - name: Create Kubernetes Secret
         run: |
+          kubectl delete secret generic my-app-secret --ignore-not-found
           kubectl create secret generic my-app-secret \
             --from-literal=api-key="${{ secrets.OPENWEATHER_API_KEY }}" \
-            --from-literal=backend-url="https://weather-backend-dde1.onrender.com" \
-            -n default --dry-run=client -o yaml | kubectl apply -f -
+            --from-literal=backend-url="https://weather-backend-dde1.onrender.com"
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f kubernetes/ || echo "⚠ Some K8s manifests may not exist"
+          kubectl apply -f kubernetes/ || echo "Some K8s manifests may not exist"
 
       - name: Update deployment images
         run: |
